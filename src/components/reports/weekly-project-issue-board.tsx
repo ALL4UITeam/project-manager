@@ -8,8 +8,9 @@ import { useApp } from "@/context/app-context";
 import { ProjectStatusBadge } from "@/components/shared/project-status-badge";
 import { ProjectPmCell, ProjectAssigneeCell } from "@/components/shared/project-pm-cell";
 import { formatRemarkLine } from "@/components/issues/remark-components";
-import { formatWeekRange } from "@/lib/week-utils";
+import { formatWeekRange, getWeekBoundsForYear } from "@/lib/week-utils";
 import { sortProjectsForDisplay } from "@/lib/project-utils";
+import type { Project } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -145,15 +146,18 @@ function ProjectRemarkInputRow({
 
 export function WeeklyProjectIssueBoard({
   weekStart,
+  selectedYear,
+  yearProjects,
   onPrevWeek,
   onNextWeek,
 }: {
   weekStart: Date;
+  selectedYear: number;
+  yearProjects: Project[];
   onPrevWeek: () => void;
   onNextWeek: () => void;
 }) {
   const {
-    projects,
     getIssuesByWeek,
     getRemarksByWeek,
     getUserById,
@@ -169,7 +173,10 @@ export function WeeklyProjectIssueBoard({
   const weekStartISO = format(weekStart, "yyyy-MM-dd");
   const weekIssues = getIssuesByWeek(weekStartISO);
   const weekRemarks = getRemarksByWeek(weekStartISO);
-  const sortedProjects = sortProjectsForDisplay(projects);
+  const sortedProjects = sortProjectsForDisplay(yearProjects);
+  const { min, max } = getWeekBoundsForYear(selectedYear);
+  const canPrevWeek = weekStart.getTime() > min.getTime();
+  const canNextWeek = weekStart.getTime() < max.getTime();
 
   return (
     <Card className="border-primary/20 shadow-sm">
@@ -181,18 +188,29 @@ export function WeeklyProjectIssueBoard({
               이번주 이슈사항
             </CardTitle>
             <CardDescription className="mt-1">
-              프로젝트별로 이번 주 이슈·비고를 등록·조회합니다. 담당 정/부는
-              Master만 수정할 수 있습니다.
+              {selectedYear}년 프로젝트 · 이번 주 이슈·비고 등록·조회
             </CardDescription>
           </div>
           <div className="flex items-center gap-1 rounded-lg border border-border bg-card">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onPrevWeek}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onPrevWeek}
+              disabled={!canPrevWeek}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="min-w-[150px] text-center text-sm font-semibold">
               {formatWeekRange(weekStart)}
             </span>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onNextWeek}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onNextWeek}
+              disabled={!canNextWeek}
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -223,7 +241,17 @@ export function WeeklyProjectIssueBoard({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedProjects.map((project) => {
+              {sortedProjects.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
+                    {selectedYear}년에 표시할 프로젝트가 없습니다
+                  </TableCell>
+                </TableRow>
+              ) : (
+              sortedProjects.map((project) => {
                 const projectIssues = weekIssues.filter(
                   (i) => i.projectId === project.id
                 );
@@ -344,7 +372,8 @@ export function WeeklyProjectIssueBoard({
                     </TableCell>
                   </TableRow>
                 );
-              })}
+              })
+              )}
             </TableBody>
           </Table>
         </div>

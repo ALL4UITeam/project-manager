@@ -7,6 +7,17 @@ const STATUS_ORDER: Record<ProjectStatus, number> = {
   완료: 3,
 };
 
+export function getDefaultSelectedYear(availableYears: number[]): number {
+  const currentYear = new Date().getFullYear();
+  return availableYears.includes(currentYear)
+    ? currentYear
+    : availableYears[0] ?? currentYear;
+}
+
+export function dateInYear(isoDate: string, year: number): boolean {
+  return parseInt(isoDate.slice(0, 4), 10) === year;
+}
+
 export function projectSpansYear(project: Project, year: number): boolean {
   const startY = parseInt(project.startDate.slice(0, 4), 10);
   const endY = parseInt(project.endDate.slice(0, 4), 10);
@@ -37,5 +48,17 @@ export function filterProjectsByYear(
 ): Project[] {
   return sortProjectsForDisplay(
     projects.filter((p) => projectSpansYear(p, year))
+  );
+}
+
+export function filterProjectsBySearch(
+  projects: Project[],
+  query: string
+): Project[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return projects;
+  return projects.filter(
+    (p) =>
+      p.code.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
   );
 }

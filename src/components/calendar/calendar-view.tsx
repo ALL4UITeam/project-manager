@@ -33,6 +33,7 @@ import {
 } from "@/lib/week-utils";
 import { WEEKDAY_LABELS } from "@/lib/week-utils";
 import { GlobalProjectFilter } from "@/components/shared/global-project-filter";
+import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -114,23 +115,20 @@ export function CalendarView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">일정 관리</h1>
-          <p className="text-sm text-muted-foreground">
-            업무 기간 Bar · 마일스톤 태그 통합 캘린더
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {!isExternal && <GlobalProjectFilter />}
-          <Tabs value={view} onValueChange={(v) => setView(v as "month" | "week")}>
-            <TabsList>
-              <TabsTrigger value="month">월간</TabsTrigger>
-              <TabsTrigger value="week">주간</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      </div>
+      <PageHeader
+        icon={CalendarIcon}
+        iconClassName="bg-emerald-500/10 text-emerald-600 ring-emerald-500/15"
+        title="일정 관리"
+        description="업무 기간 Bar · 마일스톤 태그 통합 캘린더"
+      >
+        {!isExternal && <GlobalProjectFilter />}
+        <Tabs value={view} onValueChange={(v) => setView(v as "month" | "week")}>
+          <TabsList>
+            <TabsTrigger value="month">월간</TabsTrigger>
+            <TabsTrigger value="week">주간</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </PageHeader>
 
       <div className="flex flex-wrap gap-4 text-xs">
         {(["draft-deadline", "report", "general"] as CalendarEventType[]).map(

@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Users, User, Building2 } from "lucide-react";
+import {
+  Shield,
+  Users,
+  User,
+  Building2,
+  LayoutDashboard,
+  ArrowRight,
+} from "lucide-react";
 import { useApp } from "@/context/app-context";
 import { quickLoginAccounts } from "@/data/mock-data";
 import { ROLE_LABELS, type UserRole } from "@/types";
@@ -16,7 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const ROLE_ICONS: Record<UserRole, typeof Shield> = {
   MASTER: Shield,
@@ -26,6 +33,13 @@ const ROLE_ICONS: Record<UserRole, typeof Shield> = {
 };
 
 const QUICK_ROLES: UserRole[] = ["MASTER", "LEADER", "MEMBER", "EXTERNAL"];
+
+const ROLE_ACCENTS: Record<UserRole, string> = {
+  MASTER: "from-violet-500/10 to-indigo-500/10 hover:from-violet-500/15 hover:to-indigo-500/15 border-violet-200/60",
+  LEADER: "from-sky-500/10 to-cyan-500/10 hover:from-sky-500/15 hover:to-cyan-500/15 border-sky-200/60",
+  MEMBER: "from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/15 hover:to-teal-500/15 border-emerald-200/60",
+  EXTERNAL: "from-amber-500/10 to-orange-500/10 hover:from-amber-500/15 hover:to-orange-500/15 border-amber-200/60",
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -62,23 +76,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-sky-50 p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      <div className="pointer-events-none absolute inset-0 app-surface" />
+      <div className="pointer-events-none absolute -left-32 top-20 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-20 bottom-10 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl" />
+
+      <div className="relative w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-primary-foreground shadow-lg shadow-primary/20">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-violet-600 text-xl font-bold text-white shadow-xl shadow-primary/25 ring-4 ring-primary/10">
             A4
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            프로젝트 현황 & 주간 보고
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            <LayoutDashboard className="h-3.5 w-3.5" />
+            All4Land Workspace
+          </div>
+          <h1 className="font-display text-3xl font-bold tracking-tight">
+            프로젝트 & 주간 보고
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            All4Land 파트별 업무 관리 시스템
+          <p className="mt-2 text-sm text-muted-foreground">
+            파트별 업무 · M/D · 회의록 통합 관리
           </p>
         </div>
 
-        <Card className="border-0 shadow-xl shadow-slate-200/60">
+        <Card className="glass-card border-0 shadow-xl shadow-primary/8">
           <CardHeader>
-            <CardTitle>로그인</CardTitle>
+            <CardTitle className="font-display text-lg">로그인</CardTitle>
             <CardDescription>
               실무 계정으로 로그인하거나 테스트 권한으로 바로 접속하세요.
             </CardDescription>
@@ -90,6 +112,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
+                  className="h-10 bg-background/60"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -99,21 +122,27 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
+                  className="h-10 bg-background/60"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button type="submit" className="w-full">
+              {error && (
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" className="h-10 w-full gap-2 font-medium">
                 로그인
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
 
-            <div className="mt-6">
-              <p className="mb-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="mt-8">
+              <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 빠른 로그인 (테스트)
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 {QUICK_ROLES.map((role) => {
                   const Icon = ROLE_ICONS[role];
                   const account = quickLoginAccounts.find(
@@ -123,14 +152,17 @@ export default function LoginPage() {
                     <Button
                       key={role}
                       variant="outline"
-                      className="h-auto flex-col gap-1 py-3"
+                      className={cn(
+                        "h-auto flex-col gap-1.5 border bg-gradient-to-br py-3.5 transition-all",
+                        ROLE_ACCENTS[role]
+                      )}
                       onClick={() => handleQuickLogin(role)}
                     >
-                      <Icon className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">
+                      <Icon className="h-4 w-4 text-primary" strokeWidth={2.25} />
+                      <span className="text-sm font-semibold">
                         {ROLE_LABELS[role]}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground">
                         {account?.name}
                       </span>
                     </Button>
@@ -141,9 +173,10 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <div className="space-y-2 text-center text-xs text-muted-foreground">
-          <p>팀원 테스트: changi@all4land.com / member123 (김찬기·기획)</p>
-          <p>팀장 테스트: wonwoo@all4land.com / lead123 (조원우·PM)</p>
+        <div className="space-y-1.5 text-center font-numeric text-[11px] text-muted-foreground">
+          <p>팀원: changi@all4land.com / member123</p>
+          <p>팀장: ilho@all4land.com / lead123</p>
+          <p>퍼블: seungjun@all4land.com / member123</p>
         </div>
       </div>
     </div>

@@ -27,8 +27,9 @@ GITHUB_PAGES=true npm run build
 | 역할 | 이메일 | 비밀번호 |
 |------|--------|----------|
 | Master | master@all4land.com | master123 |
-| 팀장 | wonwoo@all4land.com | lead123 |
-| 팀원 | changi@all4land.com | member123 |
+| 팀장 | ilho@all4land.com | lead123 |
+| 팀원(기획) | changi@all4land.com | member123 |
+| 팀원(퍼블) | seungjun@all4land.com | member123 |
 
 ## 공유 회의록 예시
 

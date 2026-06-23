@@ -88,3 +88,27 @@ export function parseWeekStart(iso: string): Date {
 export function getWeekStartFromDate(isoDate: string): string {
   return format(getWeekStart(parseISO(isoDate)), "yyyy-MM-dd");
 }
+
+export function isWeekInYear(weekStart: Date, year: number): boolean {
+  return parseInt(format(weekStart, "yyyy"), 10) === year;
+}
+
+export function getWeekBoundsForYear(year: number): { min: Date; max: Date } {
+  let min = getWeekStart(new Date(year, 0, 1));
+  while (!isWeekInYear(min, year)) {
+    min = addWeeks(min, 1);
+  }
+  let max = getWeekStart(new Date(year, 11, 31));
+  while (!isWeekInYear(max, year)) {
+    max = subWeeks(max, 1);
+  }
+  return { min, max };
+}
+
+export function getAnchorWeekForYear(year: number): Date {
+  const now = new Date();
+  if (now.getFullYear() === year) {
+    return getWeekStart(now);
+  }
+  return getWeekBoundsForYear(year).max;
+}

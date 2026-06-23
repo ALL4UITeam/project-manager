@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Presentation, Trash2 } from "lucide-react";
-import { format, addWeeks, subWeeks } from "date-fns";
+import { useState, useMemo } from "react";
+import { Plus, Presentation, Trash2, ClipboardList } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
+import { addWeeks, subWeeks } from "date-fns";
 import { useApp } from "@/context/app-context";
 import {
   WORK_PARTS,
@@ -13,10 +14,21 @@ import {
   type TaskType,
   type TaskStatus,
   type WeeklyTask,
+  type Project,
 } from "@/types";
 import { GlobalProjectFilter } from "@/components/shared/global-project-filter";
+import { YearFilterSelect } from "@/components/shared/year-filter-select";
 import { WeeklyProjectIssueBoard } from "@/components/reports/weekly-project-issue-board";
-import { getWeekStart } from "@/lib/week-utils";
+import {
+  getAnchorWeekForYear,
+  isWeekInYear,
+} from "@/lib/week-utils";
+import {
+  getAvailableYears,
+  filterProjectsByYear,
+  getDefaultSelectedYear,
+  dateInYear,
+} from "@/lib/project-utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -286,12 +298,16 @@ function TaskTable({
   );
 }
 
-function TaskEntryForm() {
+function TaskEntryForm({
+  yearProjects,
+  yearTasks,
+}: {
+  yearProjects: Project[];
+  yearTasks: WeeklyTask[];
+}) {
   const {
     currentUser,
-    projects,
     addWeeklyTask,
-    filteredWeeklyTasks,
     deleteWeeklyTask,
     canEditTask,
   } = useApp();
@@ -319,7 +335,7 @@ function TaskEntryForm() {
     );
   }
 
-  const myTasks = filteredWeeklyTasks.filter(
+  const myTasks = yearTasks.filter(
     (t) => t.userId === currentUser.id && t.taskType === taskType
   );
 
@@ -371,7 +387,7 @@ function TaskEntryForm() {
                     <SelectValue placeholder="프로젝트 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    {projects.map((p) => (
+                    {yearProjects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.code} · {p.name}
                       </SelectItem>
@@ -473,10 +489,9 @@ function TaskEntryForm() {
   );
 }
 
-function MeetingTaskSections() {
-  const { weeklyTasks } = useApp();
+function MeetingTaskSections({ yearTasks }: { yearTasks: WeeklyTask[] }) {
   const [activeWeek, setActiveWeek] = useState<TaskType>("THIS_WEEK");
-  const tasksForWeek = weeklyTasks.filter((t) => t.taskType === activeWeek);
+  const tasksForWeek = yearTasks.filter((t) => t.taskType === activeWeek);
 
   return (
     <div className="space-y-4">
@@ -488,11 +503,11 @@ function MeetingTaskSections() {
           <TabsList className="h-10">
             <TabsTrigger value="THIS_WEEK" className="px-5">
               {TASK_TYPE_LABELS.THIS_WEEK} (
-              {weeklyTasks.filter((t) => t.taskType === "THIS_WEEK").length})
+              {yearTasks.filter((t) => t.taskType === "THIS_WEEK").length})
             </TabsTrigger>
             <TabsTrigger value="NEXT_WEEK" className="px-5">
               {TASK_TYPE_LABELS.NEXT_WEEK} (
-              {weeklyTasks.filter((t) => t.taskType === "NEXT_WEEK").length})
+              {yearTasks.filter((t) => t.taskType === "NEXT_WEEK").length})
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -532,55 +547,99 @@ function MeetingTaskSections() {
 export function WeeklyReportView() {
   const {
     currentUser,
+    projects,
+    projectFilter,
     meetingMode,
     setMeetingMode,
     canViewAllReports,
     filteredWeeklyTasks,
   } = useApp();
 
-  const [reportWeekStart, setReportWeekStart] = useState(() =>
-    getWeekStart(new Date("2026-06-18"))
+  const availableYears = useMemo(
+    () => getAvailableYears(projects),
+    [projects]
   );
+  const [selectedYear, setSelectedYear] = useState(() =>
+    getDefaultSelectedYear(getAvailableYears(projects))
+  );
+  const [reportWeekStart, setReportWeekStart] = useState(() =>
+    getAnchorWeekForYear(getDefaultSelectedYear(getAvailableYears(projects)))
+  );
+
+  const yearProjects = useMemo(() => {
+    const byYear = filterProjectsByYear(projects, selectedYear);
+    if (projectFilter === "all") return byYear;
+    return byYear.filter((p) => p.id === projectFilter);
+  }, [projects, selectedYear, projectFilter]);
+
+  const yearTasks = useMemo(
+    () =>
+      filteredWeeklyTasks.filter((t) => dateInYear(t.startDate, selectedYear)),
+    [filteredWeeklyTasks, selectedYear]
+  );
+
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    setReportWeekStart(getAnchorWeekForYear(year));
+  };
+
+  const handlePrevWeek = () => {
+    const next = subWeeks(reportWeekStart, 1);
+    if (isWeekInYear(next, selectedYear)) setReportWeekStart(next);
+  };
+
+  const handleNextWeek = () => {
+    const next = addWeeks(reportWeekStart, 1);
+    if (isWeekInYear(next, selectedYear)) setReportWeekStart(next);
+  };
 
   const isMember = currentUser?.role === "MEMBER";
 
   return (
     <div className={cn("space-y-6", meetingMode && "max-w-none")}>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">주간 업무 보고</h1>
-          <p className="text-sm text-muted-foreground">
-            이번주 이슈 · 실적/계획 · 프로젝트 현황 통합 관리
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {!meetingMode && <GlobalProjectFilter />}
-          {canViewAllReports() && (
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2">
-              <Presentation className="h-4 w-4 text-primary" />
-              <Label htmlFor="meeting-mode" className="text-sm font-medium">
-                회의 모드
-              </Label>
-              <Switch
-                id="meeting-mode"
-                checked={meetingMode}
-                onCheckedChange={setMeetingMode}
-              />
-            </div>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        icon={ClipboardList}
+        iconClassName="bg-violet-500/10 text-violet-600 ring-violet-500/15"
+        title={`주간 업무 보고 (${selectedYear})`}
+        description={`${selectedYear}년 프로젝트 · 이번주 이슈 · 실적/계획 통합 관리`}
+      >
+        <YearFilterSelect
+          years={availableYears}
+          value={selectedYear}
+          onChange={handleYearChange}
+        />
+        {!meetingMode && <GlobalProjectFilter />}
+        {canViewAllReports() && (
+          <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-card/80 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+            <Presentation className="h-4 w-4 text-primary" />
+            <Label htmlFor="meeting-mode" className="text-sm font-medium">
+              회의 모드
+            </Label>
+            <Switch
+              id="meeting-mode"
+              checked={meetingMode}
+              onCheckedChange={setMeetingMode}
+            />
+          </div>
+        )}
+      </PageHeader>
 
       {/* 이번주 이슈 — 항상 표시 (등록 + 조회) */}
       <WeeklyProjectIssueBoard
         weekStart={reportWeekStart}
-        onPrevWeek={() => setReportWeekStart(subWeeks(reportWeekStart, 1))}
-        onNextWeek={() => setReportWeekStart(addWeeks(reportWeekStart, 1))}
+        selectedYear={selectedYear}
+        yearProjects={yearProjects}
+        onPrevWeek={handlePrevWeek}
+        onNextWeek={handleNextWeek}
       />
 
-      {isMember && !meetingMode && <TaskEntryForm />}
+      {isMember && !meetingMode && (
+        <TaskEntryForm yearProjects={yearProjects} yearTasks={yearTasks} />
+      )}
 
-      {canViewAllReports() && meetingMode && <MeetingTaskSections />}
+      {canViewAllReports() && meetingMode && (
+        <MeetingTaskSections yearTasks={yearTasks} />
+      )}
 
       {canViewAllReports() && !meetingMode && (
         <Tabs defaultValue="THIS_WEEK">
@@ -593,19 +652,14 @@ export function WeeklyReportView() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
-                    {TASK_TYPE_LABELS[type]} 전체 (
-                    {
-                      filteredWeeklyTasks.filter((t) => t.taskType === type)
-                        .length
-                    }
+                    {selectedYear}년 {TASK_TYPE_LABELS[type]} 전체 (
+                    {yearTasks.filter((t) => t.taskType === type).length}
                     건)
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   <TaskTable
-                    tasks={filteredWeeklyTasks.filter(
-                      (t) => t.taskType === type
-                    )}
+                    tasks={yearTasks.filter((t) => t.taskType === type)}
                     showUser
                   />
                 </CardContent>

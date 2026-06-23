@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Shield } from "lucide-react";
+import { Plus, Shield, Users } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
 import { useApp } from "@/context/app-context";
 import {
   ROLE_LABELS,
@@ -81,29 +82,28 @@ export function AccountManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            계정 발급 및 권한 관리
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            이름 · 소속 파트 · 권한을 지정하여 Mock 계정을 발급합니다
-          </p>
-        </div>
+      <PageHeader
+        icon={Users}
+        iconClassName="bg-cyan-500/10 text-cyan-600 ring-cyan-500/15"
+        title="계정 발급 및 권한 관리"
+        description="이름 · 소속 파트 · 권한을 지정하여 Mock 계정을 발급합니다"
+      >
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           신규 계정 발급
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-3">
         {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => {
           const count = users.filter((u) => u.role === role).length;
           return (
-            <Card key={role}>
+            <Card key={role} className="glass-card border-0">
               <CardContent className="pt-6">
-                <p className="text-xs text-muted-foreground">{ROLE_LABELS[role]}</p>
-                <p className="text-2xl font-bold">{count}명</p>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {ROLE_LABELS[role]}
+                </p>
+                <p className="font-numeric mt-1 text-2xl font-semibold">{count}명</p>
               </CardContent>
             </Card>
           );

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Pencil, ChevronRight } from "lucide-react";
+import { Plus, Pencil, ChevronRight, FolderKanban } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
 import { useApp } from "@/context/app-context";
 import type { Project, ProjectStatus } from "@/types";
 import { PROJECT_STATUS_LABELS } from "@/types";
@@ -14,7 +15,11 @@ import { ProjectDetailView } from "@/components/projects/project-detail-view";
 import {
   getAvailableYears,
   filterProjectsByYear,
+  getDefaultSelectedYear,
+  filterProjectsBySearch,
 } from "@/lib/project-utils";
+import { YearFilterSelect } from "@/components/shared/year-filter-select";
+import { ProjectSearchInput } from "@/components/shared/project-search-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -217,21 +222,25 @@ export function ProjectStatusBoard() {
 
   const availableYears = useMemo(() => getAvailableYears(projects), [projects]);
   const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(
-    availableYears.includes(currentYear)
-      ? currentYear
-      : availableYears[0] ?? currentYear
+  const [selectedYear, setSelectedYear] = useState(() =>
+    getDefaultSelectedYear(availableYears.length ? availableYears : [currentYear])
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const yearProjects = useMemo(() => {
     const byYear = filterProjectsByYear(projects, selectedYear);
     if (projectFilter === "all") return byYear;
     return byYear.filter((p) => p.id === projectFilter);
   }, [projects, selectedYear, projectFilter]);
+
+  const displayProjects = useMemo(
+    () => filterProjectsBySearch(yearProjects, searchQuery),
+    [yearProjects, searchQuery]
+  );
 
   const selectedProject = selectedId
     ? projects.find((p) => p.id === selectedId) ?? null
@@ -258,53 +267,49 @@ export function ProjectStatusBoard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            프로젝트 현황 ({selectedYear})
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            진행 중 프로젝트 우선 · 클릭 시 파트별 투입 · 이슈 이력 전체 조회
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Select
-            value={String(selectedYear)}
-            onValueChange={(v) => setSelectedYear(parseInt(v, 10))}
-          >
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}년
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <GlobalProjectFilter />
-          {canEditProject() && (
-            <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" />
-              프로젝트 추가
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        icon={FolderKanban}
+        title={`프로젝트 현황 (${selectedYear})`}
+        description="진행 중 프로젝트 우선 · 클릭 시 파트별 투입 · 이슈 이력 전체 조회"
+      >
+        <YearFilterSelect
+          years={availableYears}
+          value={selectedYear}
+          onChange={(y) => {
+            setSelectedYear(y);
+            setSearchQuery("");
+          }}
+        />
+        <ProjectSearchInput value={searchQuery} onChange={setSearchQuery} />
+        <GlobalProjectFilter />
+        {canEditProject() && (
+          <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
+            <Plus className="mr-2 h-4 w-4" />
+            프로젝트 추가
+          </Button>
+        )}
+      </PageHeader>
 
       <StatusLegend />
 
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
-            {selectedYear}년 프로젝트 ({yearProjects.length}건)
+            {selectedYear}년 프로젝트 ({displayProjects.length}건
+            {searchQuery.trim() && yearProjects.length !== displayProjects.length
+              ? ` · 전체 ${yearProjects.length}건`
+              : ""}
+            )
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {yearProjects.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               해당 연도에 진행/완료된 프로젝트가 없습니다
+            </p>
+          ) : displayProjects.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              「{searchQuery}」 검색 결과가 없습니다
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -328,7 +333,7 @@ export function ProjectStatusBoard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {yearProjects.map((project) => {
+                  {displayProjects.map((project) => {
                     const stats = getProjectStats(project.id);
                     const issueCount = getIssueCount(project.id);
                     return (
