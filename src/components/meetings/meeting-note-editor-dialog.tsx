@@ -2,19 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
+import { FileText, Link2 } from "lucide-react";
 import type { MeetingNote, Project } from "@/types";
 import { useApp } from "@/context/app-context";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogBody,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  FormDialogHeader,
+  FormDialogSection,
+  FormField,
+  formInputClassName,
+} from "@/components/shared/form-dialog";
+import { Label } from "@/components/ui/label";
 
 type FormState = {
   title: string;
@@ -91,62 +98,80 @@ export function MeetingNoteEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {note ? "회의록 수정" : "회의록 작성"}
-          </DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            {project.code} · {project.name}
-          </p>
-        </DialogHeader>
+      <DialogContent className="max-w-3xl">
+        <FormDialogHeader
+          icon={FileText}
+          accent="rose"
+          title={note ? "회의록 수정" : "회의록 작성"}
+          description={`${project.code} · ${project.name}`}
+          badge={note ? "수정" : "신규"}
+        />
 
-        <div className="space-y-4 py-2">
-          <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
-            <div className="space-y-2">
-              <Label>제목</Label>
-              <Input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="6월 3주차 주간 업무 보고 회의"
-              />
+        <DialogBody className="space-y-4">
+          <FormDialogSection title="회의 정보">
+            <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
+              <FormField label="제목" required>
+                <Input
+                  className={formInputClassName()}
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  placeholder="6월 3주차 주간 업무 보고 회의"
+                />
+              </FormField>
+              <FormField label="회의일" required>
+                <Input
+                  type="date"
+                  className={formInputClassName()}
+                  value={form.date}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                />
+              </FormField>
             </div>
-            <div className="space-y-2">
-              <Label>회의일</Label>
-              <Input
-                type="date"
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-              />
-            </div>
-          </div>
+          </FormDialogSection>
 
-          <div className="space-y-2">
-            <Label>내용</Label>
+          <FormDialogSection
+            title="회의 내용"
+            description="에디터로 안건·결정 사항·액션 아이템을 작성하세요."
+          >
             <RichTextEditor
               value={form.content}
               onChange={(html) => setForm({ ...form, content: html })}
             />
-          </div>
+          </FormDialogSection>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-4 py-3.5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Link2 className="h-4 w-4" />
+              </div>
+              <div>
+                <Label
+                  htmlFor="link-share"
+                  className="cursor-pointer text-sm font-semibold"
+                >
+                  링크 공유 허용
+                </Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  저장 후 링크를 가진 누구나 조회할 수 있습니다
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="link-share"
               checked={form.linkShareEnabled}
-              onChange={(e) =>
-                setForm({ ...form, linkShareEnabled: e.target.checked })
+              onCheckedChange={(checked) =>
+                setForm({ ...form, linkShareEnabled: checked })
               }
-              className="rounded border-border"
             />
-            저장 후 링크 공유 허용 (링크를 가진 누구나 조회)
-          </label>
-        </div>
+          </div>
+        </DialogBody>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="min-w-24" onClick={() => onOpenChange(false)}>
             취소
           </Button>
           <Button
+            className="min-w-28 shadow-sm shadow-primary/20"
             onClick={handleSave}
             disabled={
               !form.title.trim() ||

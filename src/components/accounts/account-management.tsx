@@ -1,8 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Shield, Users } from "lucide-react";
+import { Plus, Shield, Users, UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import {
+  FormDialogHeader,
+  FormDialogSection,
+  FormField,
+  formInputClassName,
+} from "@/components/shared/form-dialog";
 import { useApp } from "@/context/app-context";
 import {
   ROLE_LABELS,
@@ -13,7 +19,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -24,8 +29,7 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
+  DialogBody,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -190,84 +194,94 @@ export function AccountManagement() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>신규 계정 발급</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>이름</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>이메일</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>초기 비밀번호</Label>
-              <Input
-                type="password"
-                value={form.password}
-                onChange={(e) =>
-                  setForm({ ...form, password: e.target.value })
-                }
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>소속 파트</Label>
-                <Select
-                  value={form.part}
-                  onValueChange={(v) =>
-                    setForm({ ...form, part: v as UserPart })
+        <DialogContent className="max-w-lg">
+          <FormDialogHeader
+            icon={UserPlus}
+            accent="cyan"
+            title="신규 계정 발급"
+            description="이름 · 이메일 · 파트 · 권한을 설정해 Mock 계정을 생성합니다."
+          />
+          <DialogBody className="space-y-4">
+            <FormDialogSection title="계정 정보">
+              <FormField label="이름" required>
+                <Input
+                  className={formInputClassName()}
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="홍길동"
+                />
+              </FormField>
+              <FormField label="이메일" required>
+                <Input
+                  type="email"
+                  className={formInputClassName()}
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="name@all4land.com"
+                />
+              </FormField>
+              <FormField label="초기 비밀번호" required>
+                <Input
+                  type="password"
+                  className={formInputClassName()}
+                  value={form.password}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PART_LABELS) as UserPart[]).map((part) => (
-                      <SelectItem key={part} value={part}>
-                        {PART_LABELS[part]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="••••••••"
+                />
+              </FormField>
+            </FormDialogSection>
+
+            <FormDialogSection title="권한 설정">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="소속 파트" required>
+                  <Select
+                    value={form.part}
+                    onValueChange={(v) =>
+                      setForm({ ...form, part: v as UserPart })
+                    }
+                  >
+                    <SelectTrigger className={formInputClassName()}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(PART_LABELS) as UserPart[]).map((part) => (
+                        <SelectItem key={part} value={part}>
+                          {PART_LABELS[part]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="권한" required>
+                  <Select
+                    value={form.role}
+                    onValueChange={(v) =>
+                      setForm({ ...form, role: v as UserRole })
+                    }
+                  >
+                    <SelectTrigger className={formInputClassName()}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {ROLE_LABELS[role]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>권한</Label>
-                <Select
-                  value={form.role}
-                  onValueChange={(v) =>
-                    setForm({ ...form, role: v as UserRole })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {ROLE_LABELS[role]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
+            </FormDialogSection>
+          </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" className="min-w-24" onClick={() => setDialogOpen(false)}>
               취소
             </Button>
             <Button
+              className="min-w-28 shadow-sm shadow-primary/20"
               onClick={handleCreate}
               disabled={!form.name || !form.email || !form.password}
             >

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, AlertCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Plus, AlertCircle, ChevronLeft, ChevronRight, X, MessageSquarePlus } from "lucide-react";
+import { formInputClassName } from "@/components/shared/form-dialog";
 import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useApp } from "@/context/app-context";
@@ -53,25 +54,33 @@ function ProjectIssueInputRow({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-2 space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3"
+      className="mt-2 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-violet-500/5 p-4 shadow-sm ring-1 ring-primary/10"
       onClick={(e) => e.stopPropagation()}
     >
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/12 text-primary">
+          <AlertCircle className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs font-semibold tracking-wide text-primary uppercase">
+          이번 주 이슈 등록
+        </span>
+      </div>
       <Input
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
-        className="h-8 text-xs"
+        className={formInputClassName("h-9 text-xs")}
       />
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="이번 주 이슈 내용을 입력하세요"
         rows={2}
-        className="text-sm"
+        className="mt-2 border-border/70 bg-background/90 text-sm shadow-sm"
         autoFocus
       />
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={!content.trim()}>
+      <div className="mt-3 flex gap-2">
+        <Button type="submit" size="sm" disabled={!content.trim()} className="shadow-sm">
           <Plus className="mr-1 h-3 w-3" />
           등록
         </Button>
@@ -113,25 +122,33 @@ function ProjectRemarkInputRow({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-2 space-y-2 rounded-lg border border-slate-300 bg-slate-50 p-3"
+      className="mt-2 overflow-hidden rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 via-card to-primary/5 p-4 shadow-sm ring-1 ring-violet-500/10"
       onClick={(e) => e.stopPropagation()}
     >
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/12 text-violet-600">
+          <MessageSquarePlus className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs font-semibold tracking-wide text-violet-600 uppercase">
+          비고 등록
+        </span>
+      </div>
       <Input
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
-        className="h-8 text-xs"
+        className={formInputClassName("h-9 text-xs")}
       />
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="비고 (예: 디자인 시안 확인)"
         rows={2}
-        className="text-sm"
+        className="mt-2 border-border/70 bg-background/90 text-sm shadow-sm"
         autoFocus
       />
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={!content.trim()}>
+      <div className="mt-3 flex gap-2">
+        <Button type="submit" size="sm" disabled={!content.trim()} className="shadow-sm">
           <Plus className="mr-1 h-3 w-3" />
           등록
         </Button>

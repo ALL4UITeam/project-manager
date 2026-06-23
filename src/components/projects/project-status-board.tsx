@@ -3,6 +3,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Pencil, ChevronRight, FolderKanban } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import {
+  FormDialogHeader,
+  FormDialogSection,
+  FormField,
+  formInputClassName,
+} from "@/components/shared/form-dialog";
 import { useApp } from "@/context/app-context";
 import type { Project, ProjectStatus } from "@/types";
 import { PROJECT_STATUS_LABELS } from "@/types";
@@ -22,7 +28,6 @@ import { YearFilterSelect } from "@/components/shared/year-filter-select";
 import { ProjectSearchInput } from "@/components/shared/project-search-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -33,8 +38,7 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
+  DialogBody,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -89,111 +93,127 @@ function ProjectFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>코드</Label>
-              <Input
-                value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                placeholder="AF_P06"
-              />
+      <DialogContent className="max-w-xl">
+        <FormDialogHeader
+          icon={FolderKanban}
+          accent="sky"
+          title={title}
+          description="프로젝트 기본 정보와 일정을 입력하세요."
+        />
+        <DialogBody className="space-y-4">
+          <FormDialogSection title="기본 정보">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label="코드" required hint="예: AF_P06">
+                <Input
+                  className={formInputClassName("font-numeric")}
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                  placeholder="AF_P06"
+                />
+              </FormField>
+              <FormField label="상태" required>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) =>
+                    setForm({ ...form, status: v as ProjectStatus })
+                  }
+                >
+                  <SelectTrigger className={formInputClassName()}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map(
+                      (s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </FormField>
             </div>
-            <div className="space-y-2">
-              <Label>상태</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm({ ...form, status: v as ProjectStatus })
-                }
+            <FormField label="프로젝트명" required>
+              <Input
+                className={formInputClassName()}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="프로젝트 이름"
+              />
+            </FormField>
+          </FormDialogSection>
+
+          <FormDialogSection title="담당 · PM">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label="PM">
+                <Input
+                  className={formInputClassName()}
+                  value={form.pmName}
+                  onChange={(e) => setForm({ ...form, pmName: e.target.value })}
+                  placeholder="PM 이름"
+                />
+              </FormField>
+              <FormField
+                label="담당 정"
+                hint={canEditAssignee ? undefined : "Master만 수정"}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map(
-                    (s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
+                <Input
+                  className={formInputClassName()}
+                  value={form.assigneePrimary}
+                  onChange={(e) =>
+                    setForm({ ...form, assigneePrimary: e.target.value })
+                  }
+                  disabled={!canEditAssignee}
+                  placeholder={canEditAssignee ? "담당 정" : "Master만 수정"}
+                />
+              </FormField>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>프로젝트명</Label>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>PM</Label>
-              <Input
-                value={form.pmName}
-                onChange={(e) => setForm({ ...form, pmName: e.target.value })}
-              />
+            {canEditAssignee && (
+              <FormField label="담당 부" hint="선택">
+                <Input
+                  className={formInputClassName()}
+                  value={form.assigneeSecondary ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      assigneeSecondary: e.target.value || undefined,
+                    })
+                  }
+                  placeholder="없으면 비워두세요"
+                />
+              </FormField>
+            )}
+          </FormDialogSection>
+
+          <FormDialogSection title="일정">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label="시작일">
+                <Input
+                  type="date"
+                  className={formInputClassName()}
+                  value={form.startDate}
+                  onChange={(e) =>
+                    setForm({ ...form, startDate: e.target.value })
+                  }
+                />
+              </FormField>
+              <FormField label="종료일">
+                <Input
+                  type="date"
+                  className={formInputClassName()}
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                />
+              </FormField>
             </div>
-            <div className="space-y-2">
-              <Label>담당 정</Label>
-              <Input
-                value={form.assigneePrimary}
-                onChange={(e) =>
-                  setForm({ ...form, assigneePrimary: e.target.value })
-                }
-                disabled={!canEditAssignee}
-                placeholder={canEditAssignee ? "담당 정" : "Master만 수정"}
-              />
-            </div>
-          </div>
-          {canEditAssignee && (
-            <div className="space-y-2">
-              <Label>담당 부 (선택)</Label>
-              <Input
-                value={form.assigneeSecondary ?? ""}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    assigneeSecondary: e.target.value || undefined,
-                  })
-                }
-                placeholder="없으면 비워두세요"
-              />
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>시작일</Label>
-              <Input
-                type="date"
-                value={form.startDate}
-                onChange={(e) =>
-                  setForm({ ...form, startDate: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>종료일</Label>
-              <Input
-                type="date"
-                value={form.endDate}
-                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
+          </FormDialogSection>
+        </DialogBody>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="min-w-24" onClick={() => onOpenChange(false)}>
             취소
           </Button>
           <Button
+            className="min-w-24 shadow-sm shadow-primary/20"
             onClick={() => {
               onSave(form);
               onOpenChange(false);

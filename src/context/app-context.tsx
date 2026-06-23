@@ -12,7 +12,6 @@ import {
   mockUsers,
   mockProjects,
   mockWeeklyTasks,
-  mockMilestones,
   mockMeetingNotes,
   mockProjectIssues,
   mockProjectRemarks,
@@ -69,6 +68,10 @@ interface AppContextValue {
   addWeeklyTask: (task: Omit<WeeklyTask, "id">) => void;
   updateWeeklyTask: (id: string, data: Partial<WeeklyTask>) => void;
   deleteWeeklyTask: (id: string) => void;
+  addMilestone: (milestone: Omit<CalendarMilestone, "id">) => CalendarMilestone;
+  updateMilestone: (id: string, data: Partial<CalendarMilestone>) => void;
+  deleteMilestone: (id: string) => void;
+  canEditCalendar: () => boolean;
   addProjectIssue: (issue: Omit<ProjectIssue, "id" | "weekStart" | "userId">) => void;
   getIssuesByProject: (projectId: string) => ProjectIssue[];
   getIssuesByWeek: (weekStart: string) => ProjectIssue[];
@@ -119,7 +122,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [weeklyTasks, setWeeklyTasks] =
     useState<WeeklyTask[]>(mockWeeklyTasks);
-  const [milestones] = useState<CalendarMilestone[]>(mockMilestones);
+  const [milestones, setMilestones] = useState<CalendarMilestone[]>([]);
   const [meetingNotes, setMeetingNotes] =
     useState<MeetingNote[]>(mockMeetingNotes);
   const [projectIssues, setProjectIssues] =
@@ -204,6 +207,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteWeeklyTask = useCallback((id: string) => {
     setWeeklyTasks((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const addMilestone = useCallback((milestone: Omit<CalendarMilestone, "id">) => {
+    const created: CalendarMilestone = {
+      ...milestone,
+      id: `m-${Date.now()}`,
+    };
+    setMilestones((prev) => [...prev, created]);
+    return created;
+  }, []);
+
+  const updateMilestone = useCallback(
+    (id: string, data: Partial<CalendarMilestone>) => {
+      setMilestones((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, ...data } : m))
+      );
+    },
+    []
+  );
+
+  const deleteMilestone = useCallback((id: string) => {
+    setMilestones((prev) => prev.filter((m) => m.id !== id));
+  }, []);
+
+  const canEditCalendar = useCallback(() => {
+    if (!currentUser) return false;
+    return currentUser.role !== "EXTERNAL";
+  }, [currentUser]);
 
   const addProjectIssue = useCallback(
     (issue: Omit<ProjectIssue, "id" | "weekStart" | "userId">) => {
@@ -457,6 +487,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addWeeklyTask,
       updateWeeklyTask,
       deleteWeeklyTask,
+      addMilestone,
+      updateMilestone,
+      deleteMilestone,
+      canEditCalendar,
       addProjectIssue,
       getIssuesByProject,
       getIssuesByWeek,
@@ -509,6 +543,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addWeeklyTask,
       updateWeeklyTask,
       deleteWeeklyTask,
+      addMilestone,
+      updateMilestone,
+      deleteMilestone,
+      canEditCalendar,
       addProjectIssue,
       getIssuesByProject,
       getIssuesByWeek,

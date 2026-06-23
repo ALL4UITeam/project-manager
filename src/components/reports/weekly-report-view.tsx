@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, Presentation, Trash2, ClipboardList } from "lucide-react";
+import { Plus, Presentation, Trash2, ClipboardList, PenLine } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import {
+  FormDialogSection,
+  FormField,
+  formInputClassName,
+} from "@/components/shared/form-dialog";
 import { addWeeks, subWeeks } from "date-fns";
 import { useApp } from "@/context/app-context";
 import {
@@ -365,105 +370,116 @@ function TaskEntryForm({
         </TabsList>
       </Tabs>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            {TASK_TYPE_LABELS[taskType]} 작성
-            <Badge variant="secondary" className="ml-2">
-              {workPart}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2">
-                <Label>프로젝트</Label>
-                <Select
-                  value={form.projectId}
-                  onValueChange={(v) => setForm({ ...form, projectId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="프로젝트 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {yearProjects.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.code} · {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>시작일</Label>
-                <Input
-                  type="date"
-                  value={form.startDate}
-                  onChange={(e) =>
-                    setForm({ ...form, startDate: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>종료일</Label>
-                <Input
-                  type="date"
-                  value={form.endDate}
-                  onChange={(e) =>
-                    setForm({ ...form, endDate: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>구분</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) =>
-                    setForm({ ...form, status: v as TaskStatus })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(TASK_STATUS_LABELS) as TaskStatus[]).map(
-                      (s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+      <Card className="glass-card overflow-hidden border-0">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-br from-violet-500/8 via-transparent to-primary/5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-600 ring-1 ring-violet-500/20">
+              <PenLine className="h-4 w-4" strokeWidth={2.25} />
             </div>
-            <div className="grid gap-4 md:grid-cols-[1fr_100px]">
-              <div className="space-y-2">
-                <Label>업무내용</Label>
+            <div>
+              <CardTitle className="font-display text-base">
+                {TASK_TYPE_LABELS[taskType]} 작성
+              </CardTitle>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                파트 <Badge variant="secondary" className="ml-1">{workPart}</Badge>
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <FormDialogSection title="업무 정보">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <FormField label="프로젝트" required className="lg:col-span-2">
+                  <Select
+                    value={form.projectId}
+                    onValueChange={(v) => setForm({ ...form, projectId: v })}
+                  >
+                    <SelectTrigger className={formInputClassName()}>
+                      <SelectValue placeholder="프로젝트 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {yearProjects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.code} · {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="시작일">
+                  <Input
+                    type="date"
+                    className={formInputClassName()}
+                    value={form.startDate}
+                    onChange={(e) =>
+                      setForm({ ...form, startDate: e.target.value })
+                    }
+                  />
+                </FormField>
+                <FormField label="종료일">
+                  <Input
+                    type="date"
+                    className={formInputClassName()}
+                    value={form.endDate}
+                    onChange={(e) =>
+                      setForm({ ...form, endDate: e.target.value })
+                    }
+                  />
+                </FormField>
+                <FormField label="구분">
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) =>
+                      setForm({ ...form, status: v as TaskStatus })
+                    }
+                  >
+                    <SelectTrigger className={formInputClassName()}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(TASK_STATUS_LABELS) as TaskStatus[]).map(
+                        (s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              </div>
+            </FormDialogSection>
+            <div className="grid gap-4 md:grid-cols-[1fr_120px]">
+              <FormField label="업무내용" required>
                 <Textarea
                   value={form.content}
                   onChange={(e) =>
                     setForm({ ...form, content: e.target.value })
                   }
                   placeholder="업무 내용을 입력하세요"
-                  rows={2}
+                  rows={3}
+                  className="border-border/70 bg-background/90 shadow-sm"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>M/D</Label>
+              </FormField>
+              <FormField label="M/D">
                 <Input
                   type="number"
                   step="0.25"
                   min="0"
+                  className={formInputClassName("font-numeric")}
                   value={form.md}
                   onChange={(e) =>
                     setForm({ ...form, md: parseFloat(e.target.value) || 0 })
                   }
                 />
-              </div>
+              </FormField>
             </div>
-            <Button type="submit" disabled={!form.projectId || !form.content}>
+            <Button
+              type="submit"
+              disabled={!form.projectId || !form.content}
+              className="shadow-sm shadow-primary/20"
+            >
               <Plus className="mr-2 h-4 w-4" />
               업무 추가
             </Button>
