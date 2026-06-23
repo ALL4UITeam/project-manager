@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Calendar as CalendarIcon,
   Plus,
+  Flag,
 } from "lucide-react";
 import {
   format,
@@ -32,6 +33,7 @@ import { WEEKDAY_LABELS } from "@/lib/week-utils";
 import { GlobalProjectFilter } from "@/components/shared/global-project-filter";
 import { PageHeader } from "@/components/shared/page-header";
 import { CalendarEventDialog } from "@/components/calendar/calendar-event-dialog";
+import { useKoreanHolidays } from "@/hooks/use-korean-holidays";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,13 +47,39 @@ function milestoneStyle(m: CalendarMilestone) {
   return "bg-primary/10 text-primary border-primary/20";
 }
 
-function dayCellBackground(day: Date, inMonth: boolean, today: boolean) {
+function dayCellBackground(
+  day: Date,
+  inMonth: boolean,
+  today: boolean,
+  holidayName?: string
+) {
   const dow = getDay(day);
   if (!inMonth) return "bg-muted/20";
+  if (holidayName) {
+    return today
+      ? "bg-red-200/50 ring-1 ring-inset ring-red-300/70"
+      : "bg-red-100/80 ring-1 ring-inset ring-red-200/50";
+  }
   if (today) return "bg-primary/5";
   if (dow === 0) return "bg-red-50/70";
   if (dow === 6) return "bg-blue-50/60";
   return "bg-card/50";
+}
+
+function dayNumberClass(
+  day: Date,
+  inMonth: boolean,
+  today: boolean,
+  holidayName?: string
+) {
+  if (today) {
+    return "bg-primary text-[11px] font-bold text-primary-foreground";
+  }
+  if (!inMonth) return "text-muted-foreground";
+  if (holidayName) return "font-bold text-red-600";
+  if (getDay(day) === 0) return "font-semibold text-red-500";
+  if (getDay(day) === 6) return "font-semibold text-blue-600";
+  return "";
 }
 
 function dayHeaderStyle(d: string) {
@@ -119,6 +147,14 @@ export function CalendarView() {
   const monthGrid = getMonthGrid(currentDate);
   const weekDates = getWeekDates(weekStart);
 
+  const holidayYears = useMemo(() => {
+    const y = currentDate.getFullYear();
+    return [y - 1, y, y + 1];
+  }, [currentDate]);
+
+  const { getHoliday, loading: holidaysLoading, error: holidaysError } =
+    useKoreanHolidays(holidayYears);
+
   return (
     <div className="page-stack">
       <PageHeader
@@ -127,7 +163,7 @@ export function CalendarView() {
         title="일정 관리"
         description={
           canEdit
-            ? "날짜 클릭 → 일정 등록 · UI팀 관리 일정만 보라색"
+            ? "날짜 클릭 → 일정 등록 · 공휴일 자동 표시 · UI팀 관리는 보라색"
             : "공유된 일정만 조회"
         }
       >
@@ -167,6 +203,10 @@ export function CalendarView() {
           UI팀 관리
         </span>
         <span className="inline-flex items-center gap-1.5">
+          <span className="h-3 w-5 rounded bg-red-100 ring-1 ring-red-300/60" />
+          공휴일
+        </span>
+        <span className="inline-flex items-center gap-1.5">
           <span className="h-3 w-5 rounded bg-red-50/80 ring-1 ring-red-100" />
           일요일
         </span>
@@ -174,6 +214,16 @@ export function CalendarView() {
           <span className="h-3 w-5 rounded bg-blue-50/80 ring-1 ring-blue-100" />
           토요일
         </span>
+        {holidaysLoading && (
+          <span className="text-[11px] text-muted-foreground/70">
+            공휴일 불러오는 중…
+          </span>
+        )}
+        {holidaysError && (
+          <span className="text-[11px] text-amber-600">
+            공휴일 API 연결 실패 (주말만 표시)
+          </span>
+        )}
       </div>
 
       <Card className="glass-card border-0">
@@ -224,6 +274,7 @@ export function CalendarView() {
                   const ms = getMilestonesForDate(day);
                   const inMonth = isInCurrentMonth(day, currentDate);
                   const today = isToday(day);
+                  const holidayName = getHoliday(day);
 
                   return (
                     <button
@@ -231,9 +282,10 @@ export function CalendarView() {
                       type="button"
                       disabled={!canEdit}
                       onClick={() => openCreate(day)}
+                      title={holidayName ? `공휴일: ${holidayName}` : undefined}
                       className={cn(
                         "min-h-[96px] border-b border-r border-border p-1 text-left transition-colors",
-                        dayCellBackground(day, inMonth, today),
+                        dayCellBackground(day, inMonth, today, holidayName),
                         canEdit &&
                           "cursor-pointer hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-inset",
                         !canEdit && "cursor-default"
@@ -242,23 +294,19 @@ export function CalendarView() {
                       <span
                         className={cn(
                           "inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]",
-                          today &&
-                            "bg-primary text-[11px] font-bold text-primary-foreground",
-                          !inMonth && "text-muted-foreground",
-                          inMonth &&
-                            !today &&
-                            getDay(day) === 0 &&
-                            "font-semibold text-red-500",
-                          inMonth &&
-                            !today &&
-                            getDay(day) === 6 &&
-                            "font-semibold text-blue-600"
+                          dayNumberClass(day, inMonth, today, holidayName)
                         )}
                       >
                         {format(day, "d")}
                       </span>
                       <div className="mt-0.5 space-y-0.5">
-                        {ms.length === 0 && canEdit && inMonth && (
+                        {holidayName && inMonth && (
+                          <span className="flex items-center gap-0.5 truncate rounded border border-red-200/80 bg-red-500/10 px-1 py-0.5 text-[9px] font-semibold text-red-700">
+                            <Flag className="h-2.5 w-2.5 shrink-0" />
+                            {holidayName}
+                          </span>
+                        )}
+                        {ms.length === 0 && canEdit && inMonth && !holidayName && (
                           <p className="px-0.5 text-[9px] text-muted-foreground/45">
                             +
                           </p>

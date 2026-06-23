@@ -30,6 +30,13 @@ import { useApp } from "@/context/app-context";
 import { WORK_PARTS, TASK_TYPE_LABELS, type TaskType } from "@/types";
 import { GlobalProjectFilter } from "@/components/shared/global-project-filter";
 import { PageHeader } from "@/components/shared/page-header";
+import { YearFilterSelect } from "@/components/shared/year-filter-select";
+import {
+  getAvailableYears,
+  getDefaultSelectedYear,
+  filterProjectsByYear,
+  dateInYear,
+} from "@/lib/project-utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -125,28 +132,64 @@ function PieTooltip({
 
 export function MDDashboard() {
   const {
+    projects,
     filteredWeeklyTasks,
-    filteredProjects,
     getProjectById,
     getUserById,
     projectFilter,
+    setProjectFilter,
   } = useApp();
 
+  const availableYears = useMemo(
+    () => getAvailableYears(projects),
+    [projects]
+  );
+  const [selectedYear, setSelectedYear] = useState(() =>
+    getDefaultSelectedYear(getAvailableYears(projects))
+  );
   const [detailView, setDetailView] = useState<DetailView>("grouped");
 
-  const thisWeekTasks = filteredWeeklyTasks.filter(
-    (t) => t.taskType === "THIS_WEEK"
+  const projectsInYear = useMemo(
+    () => filterProjectsByYear(projects, selectedYear),
+    [projects, selectedYear]
   );
 
-  const chartData = useMemo(() => {
-    const projects =
-      projectFilter === "all"
-        ? filteredProjects
-        : filteredProjects.filter((p) => p.id === projectFilter);
+  const yearProjects = useMemo(() => {
+    if (projectFilter === "all") return projectsInYear;
+    return projectsInYear.filter((p) => p.id === projectFilter);
+  }, [projectsInYear, projectFilter]);
 
-    return projects
+  const yearProjectIds = useMemo(
+    () => new Set(yearProjects.map((p) => p.id)),
+    [yearProjects]
+  );
+
+  const yearTasks = useMemo(
+    () =>
+      filteredWeeklyTasks.filter(
+        (t) =>
+          t.taskType === "THIS_WEEK" &&
+          dateInYear(t.startDate, selectedYear) &&
+          yearProjectIds.has(t.projectId)
+      ),
+    [filteredWeeklyTasks, selectedYear, yearProjectIds]
+  );
+
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    setDetailView("grouped");
+    if (projectFilter !== "all") {
+      const stillVisible = filterProjectsByYear(projects, year).some(
+        (p) => p.id === projectFilter
+      );
+      if (!stillVisible) setProjectFilter("all");
+    }
+  };
+
+  const chartData = useMemo(() => {
+    return yearProjects
       .map((project) => {
-        const tasks = thisWeekTasks.filter((t) => t.projectId === project.id);
+        const tasks = yearTasks.filter((t) => t.projectId === project.id);
         const byPart = WORK_PARTS.reduce(
           (acc, part) => {
             acc[part] = tasks
@@ -166,13 +209,13 @@ export function MDDashboard() {
         };
       })
       .filter((d) => d.total > 0);
-  }, [filteredProjects, thisWeekTasks, projectFilter]);
+  }, [yearProjects, yearTasks]);
 
-  const totalMD = thisWeekTasks.reduce((s, t) => s + t.md, 0);
+  const totalMD = yearTasks.reduce((s, t) => s + t.md, 0);
 
   const partSummary = WORK_PARTS.map((part) => ({
     part,
-    md: thisWeekTasks
+    md: yearTasks
       .filter((t) => t.part === part)
       .reduce((s, t) => s + t.md, 0),
   }));
@@ -192,7 +235,7 @@ export function MDDashboard() {
 
   const projectGroups = useMemo(() => {
     const projectIds = [
-      ...new Set(thisWeekTasks.map((t) => t.projectId)),
+      ...new Set(yearTasks.map((t) => t.projectId)),
     ].sort((a, b) => {
       const codeA = getProjectById(a)?.code ?? a;
       const codeB = getProjectById(b)?.code ?? b;
@@ -201,7 +244,7 @@ export function MDDashboard() {
 
     return projectIds.map((projectId) => {
       const project = getProjectById(projectId);
-      const tasks = [...thisWeekTasks.filter((t) => t.projectId === projectId)].sort(
+      const tasks = [...yearTasks.filter((t) => t.projectId === projectId)].sort(
         (a, b) =>
           a.part.localeCompare(b.part) ||
           (getUserById(a.userId)?.name ?? "").localeCompare(
@@ -216,11 +259,11 @@ export function MDDashboard() {
 
       return { project, tasks, totalMd, byPart };
     });
-  }, [thisWeekTasks, getProjectById, getUserById]);
+  }, [yearTasks, getProjectById, getUserById]);
 
   const flatTasks = useMemo(
     () =>
-      [...thisWeekTasks].sort(
+      [...yearTasks].sort(
         (a, b) =>
           (getProjectById(a.projectId)?.code ?? "").localeCompare(
             getProjectById(b.projectId)?.code ?? ""
@@ -230,7 +273,7 @@ export function MDDashboard() {
             getUserById(b.userId)?.name ?? ""
           )
       ),
-    [thisWeekTasks, getProjectById, getUserById]
+    [yearTasks, getProjectById, getUserById]
   );
 
   const displayedGroups = useMemo(() => {
@@ -256,7 +299,7 @@ export function MDDashboard() {
 
   const selectedProjectLabel =
     projectFilter === "all"
-      ? "전체 프로젝트"
+      ? `전체 (${yearProjects.length}개)`
       : (getProjectById(projectFilter)?.code ?? "프로젝트");
 
   const detailViewLabel =
@@ -309,10 +352,15 @@ export function MDDashboard() {
       <PageHeader
         icon={BarChart3}
         iconClassName="bg-amber-500/10 text-amber-600 ring-amber-500/15"
-        title="M/D 공수 현황"
-        description="프로젝트·파트별 Man-Day 투입 현황 (이번주 실적 기준)"
+        title={`M/D 공수 현황 (${selectedYear})`}
+        description={`${selectedYear}년 프로젝트 · 이번주 실적 M/D 집계 (시작~종료 연도 기준)`}
       >
-        <GlobalProjectFilter />
+        <YearFilterSelect
+          years={availableYears}
+          value={selectedYear}
+          onChange={handleYearChange}
+        />
+        <GlobalProjectFilter projects={projectsInYear} />
       </PageHeader>
 
       {/* KPI cards */}
@@ -327,7 +375,7 @@ export function MDDashboard() {
                 <Layers className="h-4 w-4" />
               </div>
               <p className="text-xs font-medium text-muted-foreground">
-                총 M/D · {selectedProjectLabel}
+                총 M/D · {selectedYear}년 · {selectedProjectLabel}
               </p>
             </div>
             <p className="stat-value mt-2 text-2xl">{totalMD.toFixed(2)}</p>
@@ -378,7 +426,7 @@ export function MDDashboard() {
           <CardContent className="pb-4">
             {chartData.length === 0 ? (
               <p className="py-16 text-center text-sm text-muted-foreground">
-                표시할 차트 데이터가 없습니다
+                {selectedYear}년에 집계할 M/D 데이터가 없습니다
               </p>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
@@ -531,7 +579,7 @@ export function MDDashboard() {
               업무별 M/D 상세
             </CardTitle>
             <p className="mt-0.5 pl-9 text-xs text-muted-foreground">
-              {selectedProjectLabel} · {detailViewLabel} · 이번주 실적
+              {selectedYear}년 · {selectedProjectLabel} · {detailViewLabel}
             </p>
           </div>
         </CardHeader>
@@ -539,7 +587,7 @@ export function MDDashboard() {
           {detailView === "flat" ? (
             displayedFlatTasks.length === 0 ? (
               <p className="py-12 text-center text-sm text-muted-foreground">
-                표시할 업무가 없습니다
+                {selectedYear}년에 표시할 업무가 없습니다
               </p>
             ) : (
               <Table>
@@ -558,7 +606,12 @@ export function MDDashboard() {
             )
           ) : displayedGroups.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">
-              표시할 업무가 없습니다
+              {selectedYear}년에 표시할 업무가 없습니다
+              {yearProjects.length > 0 && (
+                <span className="mt-1 block text-xs">
+                  해당 연도 프로젝트 {yearProjects.length}개 · M/D 실적 없음
+                </span>
+              )}
             </p>
           ) : (
             <div className="divide-y divide-border">

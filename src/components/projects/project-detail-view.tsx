@@ -1,18 +1,21 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   ArrowLeft,
   AlertCircle,
   Users,
   Calendar,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/context/app-context";
-import type { Project } from "@/types";
+import type { Project, WorkPart } from "@/types";
 import { WORK_PARTS, PART_LABELS, TASK_TYPE_LABELS } from "@/types";
 import { ProjectStatusBadge } from "@/components/shared/project-status-badge";
+import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import {
   IssueList,
 } from "@/components/issues/issue-components";
@@ -28,6 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -36,6 +40,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+const TASK_PAGE_SIZE = 10;
 
 const PART_ACCENT: Record<string, string> = {
   기획: "border-amber-200 bg-amber-50/50",
@@ -95,6 +101,45 @@ export function ProjectDetailView({
     });
   }, [projectTasks, getUserById]);
 
+  const [taskPartFilter, setTaskPartFilter] = useState<WorkPart | "all">("all");
+  const [taskPage, setTaskPage] = useState(1);
+
+  const filteredTasks = useMemo(() => {
+    const tasks =
+      taskPartFilter === "all"
+        ? projectTasks
+        : projectTasks.filter((t) => t.part === taskPartFilter);
+    return [...tasks].sort((a, b) => b.startDate.localeCompare(a.startDate));
+  }, [projectTasks, taskPartFilter]);
+
+  const taskTotalPages = Math.max(
+    1,
+    Math.ceil(filteredTasks.length / TASK_PAGE_SIZE)
+  );
+  const paginatedTasks = filteredTasks.slice(
+    (taskPage - 1) * TASK_PAGE_SIZE,
+    taskPage * TASK_PAGE_SIZE
+  );
+
+  useEffect(() => {
+    setTaskPage(1);
+  }, [taskPartFilter, project.id]);
+
+  useEffect(() => {
+    if (taskPage > taskTotalPages) setTaskPage(taskTotalPages);
+  }, [taskPage, taskTotalPages]);
+
+  const taskRangeStart =
+    filteredTasks.length === 0 ? 0 : (taskPage - 1) * TASK_PAGE_SIZE + 1;
+  const taskRangeEnd = Math.min(taskPage * TASK_PAGE_SIZE, filteredTasks.length);
+
+  const latestIssuePreview =
+    projectIssues[0]?.content.slice(0, 60) ??
+    (projectIssues.length > 0 ? "…" : undefined);
+  const latestRemarkPreview =
+    projectRemarks[0]?.content.slice(0, 60) ??
+    (projectRemarks.length > 0 ? "…" : undefined);
+
   return (
     <div className="space-y-6">
       <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
@@ -134,46 +179,55 @@ export function ProjectDetailView({
         </div>
       </div>
 
-      <Card className={projectIssues.length > 0 ? "border-orange-200" : ""}>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <AlertCircle
-              className={cn(
-                "h-5 w-5",
-                projectIssues.length > 0
-                  ? "text-orange-500"
-                  : "text-muted-foreground"
-              )}
-            />
-            이슈 이력 (전체 {projectIssues.length}건)
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            주간 등록은 주간 업무 보고 → 이번주 이슈사항에서 작성하세요
-          </p>
-        </CardHeader>
-        <CardContent>
-          <IssueList issues={projectIssues} />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        className={projectIssues.length > 0 ? "border-orange-200" : ""}
+        title="이슈 이력"
+        count={projectIssues.length}
+        description={
+          latestIssuePreview
+            ? `최근: ${latestIssuePreview}${projectIssues[0]!.content.length > 60 ? "…" : ""} · 주간 업무 보고에서 등록`
+            : "주간 업무 보고 → 이번주 이슈사항에서 등록"
+        }
+        defaultOpen={false}
+        icon={
+          <AlertCircle
+            className={cn(
+              "h-5 w-5 shrink-0",
+              projectIssues.length > 0
+                ? "text-orange-500"
+                : "text-muted-foreground"
+            )}
+          />
+        }
+        contentClassName="max-h-80 overflow-y-auto"
+      >
+        <IssueList issues={projectIssues} />
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">비고 이력 (전체 {projectRemarks.length}건)</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            일정·참고사항 등 (이슈와 별도). 주간 등록은 주간 업무 보고에서
-            작성하세요.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <RemarkList remarks={projectRemarks} />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        title="비고 이력"
+        count={projectRemarks.length}
+        description={
+          latestRemarkPreview
+            ? `최근: ${latestRemarkPreview}${projectRemarks[0]!.content.length > 60 ? "…" : ""} · 주간 업무 보고에서 등록`
+            : "일정·참고사항 (이슈와 별도) · 주간 업무 보고에서 등록"
+        }
+        defaultOpen={false}
+        contentClassName="max-h-80 overflow-y-auto"
+      >
+        <RemarkList remarks={projectRemarks} />
+      </CollapsibleSection>
 
       <div className="space-y-4">
-        <h3 className="flex items-center gap-2 text-base font-semibold">
-          <Users className="h-5 w-5 text-primary" />
-          파트별 투입 멤버
-        </h3>
+        <div>
+          <h3 className="flex items-center gap-2 text-base font-semibold">
+            <Users className="h-5 w-5 text-primary" />
+            파트별 투입 멤버
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            주간 업무 보고의 실적·계획 업무에서 파트·담당자·M/D를 집계합니다
+          </p>
+        </div>
         <div className="grid gap-4 lg:grid-cols-3">
           {partMembers.map(({ part, members, partMD, taskCount }) => (
             <Card
@@ -238,47 +292,111 @@ export function ProjectDetailView({
 
       {projectTasks.length > 0 && (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">투입 업무 내역</CardTitle>
+          <CardHeader className="space-y-3 pb-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">투입 업무 내역</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  주간 업무 보고 데이터 · {filteredTasks.length}건
+                </p>
+              </div>
+              <Tabs
+                value={taskPartFilter}
+                onValueChange={(v) =>
+                  setTaskPartFilter(v as WorkPart | "all")
+                }
+              >
+                <TabsList className="h-8">
+                  <TabsTrigger value="all" className="px-2.5 text-xs">
+                    전체
+                  </TabsTrigger>
+                  {WORK_PARTS.map((part) => (
+                    <TabsTrigger key={part} value={part} className="px-2.5 text-xs">
+                      {part}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead>파트</TableHead>
-                  <TableHead>담당</TableHead>
-                  <TableHead>주차</TableHead>
-                  <TableHead>업무내용</TableHead>
-                  <TableHead className="text-right">M/D</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {projectTasks.map((task) => {
-                  const user = getUserById(task.userId);
-                  return (
-                    <TableRow key={task.id}>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {task.part}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm font-medium">
-                        {user?.name}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {TASK_TYPE_LABELS[task.taskType]}
-                      </TableCell>
-                      <TableCell className="max-w-md text-sm leading-relaxed">
-                        {task.content}
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-semibold text-primary">
-                        {task.md}
-                      </TableCell>
+            {filteredTasks.length === 0 ? (
+              <p className="px-6 py-8 text-center text-sm text-muted-foreground">
+                선택한 파트에 투입 업무가 없습니다
+              </p>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead>파트</TableHead>
+                      <TableHead>담당</TableHead>
+                      <TableHead>주차</TableHead>
+                      <TableHead>업무내용</TableHead>
+                      <TableHead className="text-right">M/D</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedTasks.map((task) => {
+                      const user = getUserById(task.userId);
+                      return (
+                        <TableRow key={task.id}>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {task.part}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm font-medium">
+                            {user?.name}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {TASK_TYPE_LABELS[task.taskType]}
+                          </TableCell>
+                          <TableCell className="max-w-md text-sm leading-relaxed">
+                            {task.content}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-semibold text-primary">
+                            {task.md}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                {filteredTasks.length > TASK_PAGE_SIZE && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
+                    <p className="text-xs text-muted-foreground">
+                      {taskRangeStart}–{taskRangeEnd} / {filteredTasks.length}건
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        disabled={taskPage <= 1}
+                        onClick={() => setTaskPage((p) => p - 1)}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        이전
+                      </Button>
+                      <span className="min-w-[4rem] text-center text-xs text-muted-foreground">
+                        {taskPage} / {taskTotalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        disabled={taskPage >= taskTotalPages}
+                        onClick={() => setTaskPage((p) => p + 1)}
+                      >
+                        다음
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -290,6 +408,9 @@ export function ProjectDetailView({
               <FileText className="h-4 w-4" />
               관련 회의록
             </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              회의록 메뉴에서 별도 등록 · 주간 업무 보고와는 별도 데이터
+            </p>
           </CardHeader>
           <CardContent className="space-y-2">
             {projectMeetings.map((note) => (

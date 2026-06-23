@@ -2,6 +2,7 @@
 
 import { FolderKanban } from "lucide-react";
 import { useApp } from "@/context/app-context";
+import type { Project } from "@/types";
 import {
   Select,
   SelectContent,
@@ -10,8 +11,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function GlobalProjectFilter() {
-  const { projects, projectFilter, setProjectFilter } = useApp();
+export function GlobalProjectFilter({
+  projects: projectsOverride,
+}: {
+  /** 지정 시 해당 목록만 표시 (예: M/D 연도 필터와 연동) */
+  projects?: Project[];
+} = {}) {
+  const { projects: allProjects, projectFilter, setProjectFilter } = useApp();
+  const projects = projectsOverride ?? allProjects;
 
   return (
     <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-card/80 px-2.5 py-1 shadow-sm backdrop-blur-sm">
