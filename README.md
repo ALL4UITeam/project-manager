@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# project-manager
 
-## Getting Started
+All4Land **프로젝트 현황 & 주간 업무 보고** UI 프로토타입 (Next.js)
 
-First, run the development server:
+## 로컬 실행
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## GitHub Pages
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`main` 브랜치에 push하면 GitHub Actions가 자동으로 빌드·배포합니다.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **URL:** https://all4uiteam.github.io/project-manager/
+- **설정:** Repository → Settings → Pages → Source: **GitHub Actions**
 
-## Learn More
+로컬에서 Pages와 동일하게 빌드하려면:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+GITHUB_PAGES=true npm run build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 데모 계정
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| 역할 | 이메일 | 비밀번호 |
+|------|--------|----------|
+| Master | master@all4land.com | master123 |
+| 팀장 | wonwoo@all4land.com | lead123 |
+| 팀원 | changi@all4land.com | member123 |
 
-## Deploy on Vercel
+## 공유 회의록 예시
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+https://all4uiteam.github.io/project-manager/share/meetings/demo-af02-weekly-jun3/

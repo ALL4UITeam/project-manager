@@ -1,0 +1,426 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Pencil, ChevronRight } from "lucide-react";
+import { useApp } from "@/context/app-context";
+import type { Project, ProjectStatus } from "@/types";
+import { PROJECT_STATUS_LABELS } from "@/types";
+import {
+  ProjectStatusBadge,
+  StatusLegend,
+} from "@/components/shared/project-status-badge";
+import { GlobalProjectFilter } from "@/components/shared/global-project-filter";
+import { ProjectDetailView } from "@/components/projects/project-detail-view";
+import {
+  getAvailableYears,
+  filterProjectsByYear,
+} from "@/lib/project-utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+type ProjectForm = Omit<Project, "id">;
+
+const emptyForm: ProjectForm = {
+  code: "",
+  name: "",
+  pmName: "",
+  startDate: "",
+  endDate: "",
+  status: "진행",
+  assigneePrimary: "",
+  assigneeSecondary: "",
+};
+
+function ProjectFormDialog({
+  open,
+  onOpenChange,
+  initial,
+  onSave,
+  title,
+  canEditAssignee,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  initial: ProjectForm;
+  onSave: (data: ProjectForm) => void;
+  title: string;
+  canEditAssignee: boolean;
+}) {
+  const [form, setForm] = useState(initial);
+
+  useEffect(() => {
+    if (open) setForm(initial);
+  }, [open, initial]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>코드</Label>
+              <Input
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+                placeholder="AF_P06"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>상태</Label>
+              <Select
+                value={form.status}
+                onValueChange={(v) =>
+                  setForm({ ...form, status: v as ProjectStatus })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map(
+                    (s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>프로젝트명</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>PM</Label>
+              <Input
+                value={form.pmName}
+                onChange={(e) => setForm({ ...form, pmName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>담당 정</Label>
+              <Input
+                value={form.assigneePrimary}
+                onChange={(e) =>
+                  setForm({ ...form, assigneePrimary: e.target.value })
+                }
+                disabled={!canEditAssignee}
+                placeholder={canEditAssignee ? "담당 정" : "Master만 수정"}
+              />
+            </div>
+          </div>
+          {canEditAssignee && (
+            <div className="space-y-2">
+              <Label>담당 부 (선택)</Label>
+              <Input
+                value={form.assigneeSecondary ?? ""}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    assigneeSecondary: e.target.value || undefined,
+                  })
+                }
+                placeholder="없으면 비워두세요"
+              />
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>시작일</Label>
+              <Input
+                type="date"
+                value={form.startDate}
+                onChange={(e) =>
+                  setForm({ ...form, startDate: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>종료일</Label>
+              <Input
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            취소
+          </Button>
+          <Button
+            onClick={() => {
+              onSave(form);
+              onOpenChange(false);
+            }}
+            disabled={!form.code || !form.name}
+          >
+            저장
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ProjectStatusBoard() {
+  const {
+    projects,
+    projectFilter,
+    weeklyTasks,
+    projectIssues,
+    addProject,
+    updateProject,
+    canEditProject,
+    canEditAssignee,
+  } = useApp();
+
+  const availableYears = useMemo(() => getAvailableYears(projects), [projects]);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(
+    availableYears.includes(currentYear)
+      ? currentYear
+      : availableYears[0] ?? currentYear
+  );
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Project | null>(null);
+
+  const yearProjects = useMemo(() => {
+    const byYear = filterProjectsByYear(projects, selectedYear);
+    if (projectFilter === "all") return byYear;
+    return byYear.filter((p) => p.id === projectFilter);
+  }, [projects, selectedYear, projectFilter]);
+
+  const selectedProject = selectedId
+    ? projects.find((p) => p.id === selectedId) ?? null
+    : null;
+
+  const getIssueCount = (projectId: string) =>
+    projectIssues.filter((i) => i.projectId === projectId).length;
+
+  const getProjectStats = (projectId: string) => {
+    const tasks = weeklyTasks.filter((t) => t.projectId === projectId);
+    const md = tasks.reduce((s, t) => s + t.md, 0);
+    const memberCount = new Set(tasks.map((t) => t.userId)).size;
+    return { md, memberCount, taskCount: tasks.length };
+  };
+
+  if (selectedProject) {
+    return (
+      <ProjectDetailView
+        project={selectedProject}
+        onBack={() => setSelectedId(null)}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            프로젝트 현황 ({selectedYear})
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            진행 중 프로젝트 우선 · 클릭 시 파트별 투입 · 이슈 이력 전체 조회
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={String(selectedYear)}
+            onValueChange={(v) => setSelectedYear(parseInt(v, 10))}
+          >
+            <SelectTrigger className="w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map((y) => (
+                <SelectItem key={y} value={String(y)}>
+                  {y}년
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <GlobalProjectFilter />
+          {canEditProject() && (
+            <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              프로젝트 추가
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <StatusLegend />
+
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">
+            {selectedYear}년 프로젝트 ({yearProjects.length}건)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {yearProjects.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              해당 연도에 진행/완료된 프로젝트가 없습니다
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="w-24 font-semibold">코드</TableHead>
+                    <TableHead className="min-w-[240px] font-semibold">
+                      프로젝트명
+                    </TableHead>
+                    <TableHead className="w-24 font-semibold">PM</TableHead>
+                    <TableHead className="w-28 font-semibold">담당</TableHead>
+                    <TableHead className="w-28 font-semibold">기간</TableHead>
+                    <TableHead className="w-20 font-semibold">상태</TableHead>
+                    <TableHead className="w-20 font-semibold">투입</TableHead>
+                    <TableHead className="w-16 font-semibold">이슈</TableHead>
+                    {canEditProject() && (
+                      <TableHead className="w-12 font-semibold" />
+                    )}
+                    <TableHead className="w-8" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {yearProjects.map((project) => {
+                    const stats = getProjectStats(project.id);
+                    const issueCount = getIssueCount(project.id);
+                    return (
+                      <TableRow
+                        key={project.id}
+                        className="cursor-pointer transition-colors hover:bg-primary/5"
+                        onClick={() => setSelectedId(project.id)}
+                      >
+                        <TableCell className="font-mono text-xs font-semibold text-primary">
+                          {project.code}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {project.name}
+                        </TableCell>
+                        <TableCell className="text-sm">{project.pmName}</TableCell>
+                        <TableCell className="text-xs">
+                          <div>정: {project.assigneePrimary || "—"}</div>
+                          {project.assigneeSecondary && (
+                            <div className="text-muted-foreground">
+                              부: {project.assigneeSecondary}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {project.startDate}
+                          <br />~ {project.endDate}
+                        </TableCell>
+                        <TableCell>
+                          <ProjectStatusBadge status={project.status} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-xs">
+                            <span className="font-mono font-semibold text-primary">
+                              {stats.md.toFixed(1)}M
+                            </span>
+                            <span className="text-muted-foreground">
+                              {" "}
+                              · {stats.memberCount}명
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {issueCount > 0 ? (
+                            <Badge
+                              variant="outline"
+                              className="border-orange-200 bg-orange-50 text-orange-700"
+                            >
+                              {issueCount}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        {canEditProject() && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditing(project);
+                                setDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <ProjectFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        initial={editing ?? emptyForm}
+        onSave={(data) =>
+          editing ? updateProject(editing.id, data) : addProject(data)
+        }
+        title={editing ? "프로젝트 수정" : "프로젝트 등록"}
+        canEditAssignee={canEditAssignee()}
+      />
+    </div>
+  );
+}
