@@ -22,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -98,26 +97,9 @@ export function AccountManagement() {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => {
-          const count = users.filter((u) => u.role === role).length;
-          return (
-            <Card key={role} className="glass-card border-0">
-              <CardContent className="pt-6">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {ROLE_LABELS[role]}
-                </p>
-                <p className="font-numeric mt-1 text-2xl font-semibold">{count}명</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle className="text-base">발급된 계정 목록</CardTitle>
-          <CardDescription>총 {users.length}명</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
