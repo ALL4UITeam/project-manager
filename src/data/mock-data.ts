@@ -94,7 +94,7 @@ export const mockProjects: Project[] = [
     pmName: "김일호",
     startDate: "2025-01-01",
     endDate: "2026-12-31",
-    status: "이슈",
+    status: "진행",
     assigneePrimary: "김찬기",
     assigneeSecondary: "반지애",
   },
@@ -463,52 +463,7 @@ export const mockWeeklyTasks: WeeklyTask[] = [
   },
 ];
 
-export const mockMilestones: CalendarMilestone[] = [
-  {
-    id: "m1",
-    title: "1차 시안 완료",
-    date: "2026-06-20",
-    type: "draft-deadline",
-    projectId: "p-af02hp",
-    description: "라이브버스 HP 메인 비주얼 1차 시안 제출",
-    isShared: true,
-  },
-  {
-    id: "m2",
-    title: "주간 업무 보고",
-    date: "2026-06-20",
-    type: "report",
-    projectId: "p-af02",
-    description: "금요일 정기 주간 보고 회의",
-    isShared: true,
-  },
-  {
-    id: "m3",
-    title: "BMS 홍천 QA",
-    date: "2026-06-25",
-    type: "general",
-    projectId: "p-af02",
-    description: "BMS 홍천 기능 QA 및 배포",
-    isShared: false,
-  },
-  {
-    id: "m4",
-    title: "1차 시안 완료",
-    date: "2026-06-27",
-    type: "draft-deadline",
-    projectId: "p-af02",
-    description: "시군구 템플릿 1차 시안 완료",
-    isShared: true,
-  },
-  {
-    id: "m5",
-    title: "월간 KPI 보고",
-    date: "2026-06-30",
-    type: "report",
-    description: "6월 KPI 종합 보고",
-    isShared: true,
-  },
-];
+export const mockMilestones: CalendarMilestone[] = [];
 
 export const mockMeetingNotes: MeetingNote[] = [
   {

@@ -196,49 +196,45 @@ export function WeeklyProjectIssueBoard({
   const canNextWeek = weekStart.getTime() < max.getTime();
 
   return (
-    <Card className="border-primary/20 shadow-sm">
-      <CardHeader className="border-b bg-primary/5 pb-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <AlertCircle className="h-5 w-5 text-orange-500" />
+    <Card className="border-primary/15 shadow-sm">
+      <CardHeader className="space-y-0 border-b bg-primary/[0.03] px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+            <CardTitle className="flex items-center gap-1.5 text-base">
+              <AlertCircle className="h-4 w-4 text-orange-500" />
               이번주 이슈사항
             </CardTitle>
-            <CardDescription className="mt-1">
-              {selectedYear}년 프로젝트 · 이번 주 이슈·비고 등록·조회
+            <CardDescription className="m-0 text-xs">
+              {selectedYear}년 · 이번 주 이슈·비고
             </CardDescription>
+            <Badge variant="secondary" className="h-6 text-[11px]">
+              이슈 {weekIssues.length}
+            </Badge>
+            <Badge variant="outline" className="h-6 text-[11px]">
+              비고 {weekRemarks.length}
+            </Badge>
           </div>
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-card">
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card">
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8"
+              size="icon-sm"
               onClick={onPrevWeek}
               disabled={!canPrevWeek}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="min-w-[150px] text-center text-sm font-semibold">
+            <span className="min-w-[130px] text-center text-xs font-semibold">
               {formatWeekRange(weekStart)}
             </span>
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8"
+              size="icon-sm"
               onClick={onNextWeek}
               disabled={!canNextWeek}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Badge variant="secondary" className="w-fit">
-            이번 주 이슈 {weekIssues.length}건
-          </Badge>
-          <Badge variant="outline" className="w-fit">
-            비고 {weekRemarks.length}건
-          </Badge>
         </div>
       </CardHeader>
       <CardContent className="p-0">

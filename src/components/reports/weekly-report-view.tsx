@@ -612,7 +612,7 @@ export function WeeklyReportView() {
   const isMember = currentUser?.role === "MEMBER";
 
   return (
-    <div className={cn("space-y-6", meetingMode && "max-w-none")}>
+    <div className={cn("page-stack", meetingMode && "max-w-none")}>
       <PageHeader
         icon={ClipboardList}
         iconClassName="bg-violet-500/10 text-violet-600 ring-violet-500/15"

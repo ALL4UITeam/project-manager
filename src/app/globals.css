@@ -160,4 +160,7 @@
     font-variant-numeric: tabular-nums;
     @apply text-3xl font-semibold tracking-tight text-primary;
   }
+  .page-stack {
+    @apply flex flex-col gap-4;
+  }
 }

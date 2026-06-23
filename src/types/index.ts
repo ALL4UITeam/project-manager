@@ -2,15 +2,13 @@ export type UserRole = "MASTER" | "LEADER" | "MEMBER" | "EXTERNAL";
 
 export type UserPart = "PLANNING" | "DESIGN" | "PUBLISHING" | "DEV";
 
-export type ProjectStatus = "완료" | "진행" | "홀드" | "이슈";
+export type ProjectStatus = "완료" | "진행" | "홀드";
 
 export type TaskType = "THIS_WEEK" | "NEXT_WEEK";
 
 export type TaskStatus = "완료" | "진행";
 
 export type WorkPart = "기획" | "디자인" | "퍼블리싱";
-
-export type CalendarEventType = "draft-deadline" | "report" | "general";
 
 export type Weekday =
   | "monday"
@@ -87,10 +85,11 @@ export interface CalendarMilestone {
   id: string;
   title: string;
   date: string;
-  type: CalendarEventType;
   projectId?: string;
   description?: string;
   isShared: boolean;
+  /** UI팀 관리 일정(연차·팀 일정) — 보라색 표시 */
+  isTeamAdmin?: boolean;
 }
 
 export interface MeetingNote {
@@ -134,7 +133,6 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   완료: "완료",
   진행: "진행",
   홀드: "홀드",
-  이슈: "이슈",
 };
 
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
@@ -145,10 +143,4 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   완료: "완료",
   진행: "진행",
-};
-
-export const CALENDAR_EVENT_LABELS: Record<CalendarEventType, string> = {
-  "draft-deadline": "1차 시안 완료",
-  report: "보고일",
-  general: "일반 업무",
 };

@@ -5,10 +5,6 @@ export const PROJECT_STATUS_STYLES: Record<
   ProjectStatus,
   { badge: string; dot: string }
 > = {
-  이슈: {
-    badge: "bg-orange-50 text-orange-700 border-orange-200",
-    dot: "bg-orange-500",
-  },
   진행: {
     badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
     dot: "bg-emerald-500",
@@ -43,9 +39,9 @@ export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
 }
 
 export function StatusLegend() {
-  const items: ProjectStatus[] = ["이슈", "진행", "홀드", "완료"];
+  const items: ProjectStatus[] = ["진행", "홀드", "완료"];
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-2">
       {items.map((status) => (
         <ProjectStatusBadge key={status} status={status} />
       ))}

@@ -120,7 +120,7 @@ export function MDDashboard() {
       : getProjectById(projectFilter)?.code ?? "프로젝트";
 
   return (
-    <div className="space-y-6">
+    <div className="page-stack">
       <PageHeader
         icon={BarChart3}
         iconClassName="bg-amber-500/10 text-amber-600 ring-amber-500/15"
@@ -151,7 +151,7 @@ export function MDDashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card className="glass-card border-0">
           <CardHeader>
             <CardTitle className="text-base">프로젝트별 파트 M/D</CardTitle>

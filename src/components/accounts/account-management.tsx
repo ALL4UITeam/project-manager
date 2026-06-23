@@ -85,7 +85,7 @@ export function AccountManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-stack">
       <PageHeader
         icon={Users}
         iconClassName="bg-cyan-500/10 text-cyan-600 ring-cyan-500/15"

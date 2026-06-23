@@ -239,7 +239,7 @@ export function MeetingNotesView() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-stack">
       <PageHeader
         icon={FileText}
         iconClassName="bg-rose-500/10 text-rose-600 ring-rose-500/15"

@@ -286,7 +286,7 @@ export function ProjectStatusBoard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-stack">
       <PageHeader
         icon={FolderKanban}
         title={`프로젝트 현황 (${selectedYear})`}

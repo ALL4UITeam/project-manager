@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -11,7 +12,8 @@ import {
   FileText,
   LogOut,
   ChevronDown,
-  Sparkles,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { useApp, type MenuKey } from "@/context/app-context";
 import { ROLE_LABELS, PART_LABELS, type UserRole } from "@/types";
@@ -34,6 +36,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+
+const SIDEBAR_KEY = "a4-sidebar-collapsed";
 
 const NAV_ITEMS: {
   key: MenuKey;
@@ -95,31 +99,45 @@ const PAGE_TITLES: Record<string, string> = {
   "/accounts": "계정 관리",
 };
 
-export function AppSidebar() {
+export function AppSidebar({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
   const { canAccess } = useApp();
   const visibleItems = NAV_ITEMS.filter((item) => canAccess(item.key));
 
   return (
-    <aside className="relative flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <aside
+      className={cn(
+        "relative flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200",
+        collapsed ? "w-[4.25rem]" : "w-56"
+      )}
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,oklch(0.35_0.08_265/0.35),transparent_55%)]" />
-      <div className="relative flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-sm font-bold text-white shadow-lg shadow-primary/30">
+      <div
+        className={cn(
+          "relative flex h-14 items-center border-b border-sidebar-border",
+          collapsed ? "justify-center px-2" : "gap-3 px-4"
+        )}
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-500 text-xs font-bold text-white shadow-lg shadow-primary/30">
           A4
         </div>
-        <div>
-          <p className="font-display text-sm font-bold tracking-tight text-white">
-            All4Land
-          </p>
-          <p className="text-[11px] text-sidebar-foreground/60">
-            Project Workspace
-          </p>
-        </div>
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="truncate font-display text-sm font-bold tracking-tight text-white">
+              All4Land
+            </p>
+            <p className="truncate text-[10px] text-sidebar-foreground/60">
+              Project Workspace
+            </p>
+          </div>
+        )}
       </div>
-      <nav className="relative flex flex-1 flex-col gap-1 p-3">
-        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">
-          Menu
-        </p>
+      <nav className="relative flex flex-1 flex-col gap-0.5 p-2">
+        {!collapsed && (
+          <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">
+            Menu
+          </p>
+        )}
         {visibleItems.map((item) => {
           const Icon = item.icon;
           const active = pathname.startsWith(item.href);
@@ -127,44 +145,44 @@ export function AppSidebar() {
             <Link
               key={item.key}
               href={item.href}
+              title={collapsed ? item.label : undefined}
               data-active={active}
               className={cn(
-                "group/nav relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+                "group/nav relative flex items-center rounded-lg text-sm font-medium transition-all",
+                collapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2",
                 active
                   ? "bg-sidebar-accent text-white shadow-sm"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
               )}
             >
-              {active && (
-                <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-primary" />
+              {active && !collapsed && (
+                <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-r-full bg-primary" />
               )}
               <span
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors",
                   item.accent,
                   !active && "opacity-80 group-hover/nav:opacity-100"
                 )}
               >
                 <Icon className="h-4 w-4" strokeWidth={2.25} />
               </span>
-              {item.label}
+              {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
-      <div className="relative border-t border-sidebar-border p-4">
-        <div className="flex items-center gap-2 rounded-xl bg-sidebar-accent/50 px-3 py-2.5 ring-1 ring-sidebar-border/80">
-          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-          <p className="text-[11px] leading-snug text-sidebar-foreground/70">
-            파트별 업무 · M/D · 회의록 통합 관리
-          </p>
-        </div>
-      </div>
     </aside>
   );
 }
 
-export function AppHeader() {
+export function AppHeader({
+  sidebarCollapsed,
+  onToggleSidebar,
+}: {
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { currentUser, logout, switchRole } = useApp();
@@ -175,8 +193,21 @@ export function AppHeader() {
     "All4Land";
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/80 bg-card/80 px-6 backdrop-blur-md">
+    <header className="flex h-12 shrink-0 items-center justify-between border-b border-border/80 bg-card/80 px-4 backdrop-blur-md">
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={onToggleSidebar}
+          title={sidebarCollapsed ? "메뉴 펼치기" : "메뉴 접기"}
+        >
+          {sidebarCollapsed ? (
+            <PanelLeft className="h-4 w-4" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" />
+          )}
+        </Button>
         <span className="font-display text-sm font-semibold text-foreground">
           {pageTitle}
         </span>
@@ -185,8 +216,8 @@ export function AppHeader() {
           {currentUser.name}
         </span>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-2 rounded-lg border border-border/80 bg-muted/40 px-2.5 py-1 md:flex">
+      <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-2 py-0.5 md:flex">
           <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             Demo
           </span>
@@ -210,10 +241,10 @@ export function AppHeader() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="h-9 gap-2 rounded-xl px-2 hover:bg-muted/60"
+              className="h-8 gap-2 rounded-lg px-2 hover:bg-muted/60"
             >
-              <Avatar className="h-8 w-8 ring-2 ring-primary/20">
-                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20 font-display text-xs font-bold text-primary">
+              <Avatar className="h-7 w-7 ring-2 ring-primary/20">
+                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20 font-display text-[10px] font-bold text-primary">
                   {currentUser.name.slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
@@ -221,7 +252,7 @@ export function AppHeader() {
                 <p className="text-sm font-medium leading-none">
                   {currentUser.name}
                 </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
                   {PART_LABELS[currentUser.part]}
                 </p>
               </div>
@@ -261,12 +292,41 @@ export function AppHeader() {
 }
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(SIDEBAR_KEY) === "true") {
+        setSidebarCollapsed(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
-      <AppSidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <AppHeader />
-        <main className="app-surface flex-1 overflow-auto p-6">{children}</main>
+      <AppSidebar collapsed={sidebarCollapsed} />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <AppHeader
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={toggleSidebar}
+        />
+        <main className="app-surface flex-1 overflow-auto p-4 lg:p-5">
+          {children}
+        </main>
       </div>
     </div>
   );

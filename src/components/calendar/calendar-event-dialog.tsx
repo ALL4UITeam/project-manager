@@ -3,14 +3,12 @@
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
-import { CalendarPlus, Trash2 } from "lucide-react";
-import type { CalendarEventType, CalendarMilestone } from "@/types";
-import { CALENDAR_EVENT_LABELS } from "@/types";
+import { CalendarPlus, Trash2, Users } from "lucide-react";
+import type { CalendarMilestone } from "@/types";
 import { useApp } from "@/context/app-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -35,29 +33,29 @@ import {
 type FormState = {
   title: string;
   date: string;
-  type: CalendarEventType;
   projectId: string;
   description: string;
   isShared: boolean;
+  isTeamAdmin: boolean;
 };
 
 const emptyForm = (date: string): FormState => ({
   title: "",
   date,
-  type: "general",
   projectId: "",
   description: "",
   isShared: false,
+  isTeamAdmin: false,
 });
 
 function milestoneToForm(m: CalendarMilestone): FormState {
   return {
     title: m.title,
     date: m.date,
-    type: m.type,
     projectId: m.projectId ?? "",
     description: m.description ?? "",
     isShared: m.isShared,
+    isTeamAdmin: m.isTeamAdmin ?? false,
   };
 }
 
@@ -94,10 +92,10 @@ export function CalendarEventDialog({
     const payload = {
       title: form.title.trim(),
       date: form.date,
-      type: form.type,
       projectId: form.projectId || undefined,
       description: form.description.trim() || undefined,
       isShared: form.isShared,
+      isTeamAdmin: form.isTeamAdmin,
     };
 
     if (editing) {
@@ -135,7 +133,7 @@ export function CalendarEventDialog({
           badge={editing ? "수정" : "신규"}
         />
 
-        <DialogBody className="space-y-4">
+        <DialogBody className="space-y-3">
           <FormDialogSection title="일정 정보">
             <FormField label="제목" required>
               <Input
@@ -147,37 +145,14 @@ export function CalendarEventDialog({
               />
             </FormField>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField label="날짜" required>
-                <Input
-                  type="date"
-                  className={formInputClassName()}
-                  value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                />
-              </FormField>
-              <FormField label="유형" required>
-                <Select
-                  value={form.type}
-                  onValueChange={(v) =>
-                    setForm({ ...form, type: v as CalendarEventType })
-                  }
-                >
-                  <SelectTrigger className={formInputClassName()}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(
-                      Object.keys(CALENDAR_EVENT_LABELS) as CalendarEventType[]
-                    ).map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {CALENDAR_EVENT_LABELS[type]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-            </div>
+            <FormField label="날짜" required>
+              <Input
+                type="date"
+                className={formInputClassName()}
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+              />
+            </FormField>
 
             <FormField label="프로젝트" hint="선택">
               <Select
@@ -208,13 +183,38 @@ export function CalendarEventDialog({
                   setForm({ ...form, description: e.target.value })
                 }
                 placeholder="상세 내용을 입력하세요"
-                rows={3}
+                rows={2}
                 className="border-border/70 bg-background/90 shadow-sm"
               />
             </FormField>
           </FormDialogSection>
 
-          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-4 py-3.5">
+          <div className="flex items-center justify-between rounded-xl border border-violet-500/25 bg-violet-500/5 px-4 py-3">
+            <div className="flex items-start gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600">
+                <Users className="h-4 w-4" />
+              </div>
+              <div>
+                <Label htmlFor="team-admin" className="text-sm font-semibold">
+                  UI팀 관리 일정
+                </Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  연차·팀 일정 등 (보라색 표시, 선택)
+                </p>
+              </div>
+            </div>
+            <input
+              id="team-admin"
+              type="checkbox"
+              checked={form.isTeamAdmin}
+              onChange={(e) =>
+                setForm({ ...form, isTeamAdmin: e.target.checked })
+              }
+              className="size-4 rounded border-border accent-violet-600"
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
             <div>
               <Label htmlFor="cal-shared" className="text-sm font-semibold">
                 외부 협력 공유
@@ -223,12 +223,14 @@ export function CalendarEventDialog({
                 외부 계정에서도 이 일정을 볼 수 있습니다
               </p>
             </div>
-            <Switch
+            <input
               id="cal-shared"
+              type="checkbox"
               checked={form.isShared}
-              onCheckedChange={(checked) =>
-                setForm({ ...form, isShared: checked })
+              onChange={(e) =>
+                setForm({ ...form, isShared: e.target.checked })
               }
+              className="size-4 rounded border-border accent-primary"
             />
           </div>
 

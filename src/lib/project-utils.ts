@@ -1,10 +1,9 @@
 import type { Project, ProjectStatus } from "@/types";
 
 const STATUS_ORDER: Record<ProjectStatus, number> = {
-  이슈: 0,
-  진행: 1,
-  홀드: 2,
-  완료: 3,
+  진행: 0,
+  홀드: 1,
+  완료: 2,
 };
 
 export function getDefaultSelectedYear(availableYears: number[]): number {
