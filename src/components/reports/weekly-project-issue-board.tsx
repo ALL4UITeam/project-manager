@@ -54,7 +54,7 @@ function ProjectIssueInputRow({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-2 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-violet-500/5 p-4 shadow-sm ring-1 ring-primary/10"
+      className="overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-violet-500/5 p-4 shadow-sm ring-1 ring-primary/10"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="mb-3 flex items-center gap-2">
@@ -122,7 +122,7 @@ function ProjectRemarkInputRow({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-2 overflow-hidden rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 via-card to-primary/5 p-4 shadow-sm ring-1 ring-violet-500/10"
+      className="overflow-hidden rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 via-card to-primary/5 p-4 shadow-sm ring-1 ring-violet-500/10"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="mb-3 flex items-center gap-2">
@@ -197,24 +197,28 @@ export function WeeklyProjectIssueBoard({
 
   return (
     <Card className="border-primary/15 shadow-sm">
-      <CardHeader className="space-y-0 border-b bg-primary/[0.03] px-4 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <CardTitle className="flex items-center gap-1.5 text-base">
-              <AlertCircle className="h-4 w-4 text-orange-500" />
+      <CardHeader className="space-y-3 border-b bg-primary/[0.03]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10">
+                <AlertCircle className="h-4 w-4 text-orange-500" />
+              </span>
               이번주 이슈사항
             </CardTitle>
-            <CardDescription className="m-0 text-xs">
-              {selectedYear}년 · 이번 주 이슈·비고
-            </CardDescription>
-            <Badge variant="secondary" className="h-6 text-[11px]">
-              이슈 {weekIssues.length}
-            </Badge>
-            <Badge variant="outline" className="h-6 text-[11px]">
-              비고 {weekRemarks.length}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2 pl-10">
+              <CardDescription className="m-0 text-xs">
+                {selectedYear}년 · 이번 주 이슈·비고
+              </CardDescription>
+              <Badge variant="secondary" className="h-6 text-[11px]">
+                이슈 {weekIssues.length}
+              </Badge>
+              <Badge variant="outline" className="h-6 text-[11px]">
+                비고 {weekRemarks.length}
+              </Badge>
+            </div>
           </div>
-          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-card px-1">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -223,7 +227,7 @@ export function WeeklyProjectIssueBoard({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="min-w-[130px] text-center text-xs font-semibold">
+            <span className="min-w-[140px] px-2 text-center text-xs font-semibold">
               {formatWeekRange(weekStart)}
             </span>
             <Button
@@ -242,15 +246,21 @@ export function WeeklyProjectIssueBoard({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="w-24 font-semibold">코드</TableHead>
-                <TableHead className="min-w-[160px] font-semibold">프로젝트</TableHead>
-                <TableHead className="w-20 font-semibold">PM</TableHead>
-                <TableHead className="min-w-[100px] font-semibold">담당</TableHead>
-                <TableHead className="w-20 font-semibold">상태</TableHead>
-                <TableHead className="min-w-[260px] font-semibold">
+                <TableHead className="h-11 px-4 font-semibold">코드</TableHead>
+                <TableHead className="min-w-[160px] px-4 font-semibold">
+                  프로젝트
+                </TableHead>
+                <TableHead className="px-4 font-semibold">PM</TableHead>
+                <TableHead className="min-w-[100px] px-4 font-semibold">
+                  담당
+                </TableHead>
+                <TableHead className="px-4 font-semibold">상태</TableHead>
+                <TableHead className="min-w-[280px] px-4 font-semibold">
                   이번 주 이슈
                 </TableHead>
-                <TableHead className="min-w-[220px] font-semibold">비고</TableHead>
+                <TableHead className="min-w-[240px] px-4 font-semibold">
+                  비고
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -258,7 +268,7 @@ export function WeeklyProjectIssueBoard({
                 <TableRow>
                   <TableCell
                     colSpan={7}
-                    className="py-10 text-center text-sm text-muted-foreground"
+                    className="px-4 py-12 text-center text-sm text-muted-foreground"
                   >
                     {selectedYear}년에 표시할 프로젝트가 없습니다
                   </TableCell>
@@ -276,112 +286,116 @@ export function WeeklyProjectIssueBoard({
 
                 return (
                   <TableRow key={project.id} className="align-top">
-                    <TableCell className="font-mono text-xs font-bold text-primary">
+                    <TableCell className="whitespace-normal px-4 py-4 align-top font-mono text-xs font-bold text-primary">
                       {project.code}
                     </TableCell>
-                    <TableCell className="text-sm font-medium">
+                    <TableCell className="whitespace-normal px-4 py-4 align-top text-sm font-medium">
                       {project.name}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-normal px-4 py-4 align-top">
                       <ProjectPmCell project={project} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-normal px-4 py-4 align-top">
                       <ProjectAssigneeCell project={project} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-normal px-4 py-4 align-top">
                       <ProjectStatusBadge status={project.status} />
                     </TableCell>
-                    <TableCell>
-                      {projectIssues.length > 0 ? (
-                        <ul className="space-y-2">
-                          {projectIssues.map((issue) => {
-                            const author = getUserById(issue.userId);
-                            return (
-                              <li
-                                key={issue.id}
-                                className="rounded-md border border-orange-100 bg-orange-50 px-3 py-2"
-                              >
-                                <div className="mb-0.5 text-[10px] text-muted-foreground">
-                                  {format(parseISO(issue.date), "M/d (EEE)", {
-                                    locale: ko,
-                                  })}
-                                  {author && ` · ${author.name}`}
-                                </div>
-                                <p className="text-sm leading-snug text-orange-900">
-                                  {issue.content}
-                                </p>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : (
-                        !isAddingIssue && (
-                          <span className="text-sm text-muted-foreground">
-                            등록된 이슈 없음
-                          </span>
-                        )
-                      )}
-                      {isAddingIssue && (
-                        <ProjectIssueInputRow
-                          projectId={project.id}
-                          onDone={() => setAddingIssueProjectId(null)}
-                        />
-                      )}
-                      {canAddIssue() && !isAddingIssue && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-2 h-8 text-xs"
-                          onClick={() => {
-                            setAddingRemarkProjectId(null);
-                            setAddingIssueProjectId(project.id);
-                          }}
-                        >
-                          <Plus className="mr-1 h-3 w-3" />
-                          이슈 작성
-                        </Button>
-                      )}
+                    <TableCell className="min-w-[280px] whitespace-normal px-4 py-4 align-top">
+                      <div className="flex flex-col gap-3">
+                        {projectIssues.length > 0 ? (
+                          <ul className="space-y-2">
+                            {projectIssues.map((issue) => {
+                              const author = getUserById(issue.userId);
+                              return (
+                                <li
+                                  key={issue.id}
+                                  className="rounded-lg border border-orange-100 bg-orange-50 px-3 py-2.5"
+                                >
+                                  <div className="mb-1 text-[10px] text-muted-foreground">
+                                    {format(parseISO(issue.date), "M/d (EEE)", {
+                                      locale: ko,
+                                    })}
+                                    {author && ` · ${author.name}`}
+                                  </div>
+                                  <p className="text-sm leading-relaxed text-orange-900">
+                                    {issue.content}
+                                  </p>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          !isAddingIssue && (
+                            <p className="text-sm text-muted-foreground">
+                              등록된 이슈 없음
+                            </p>
+                          )
+                        )}
+                        {isAddingIssue && (
+                          <ProjectIssueInputRow
+                            projectId={project.id}
+                            onDone={() => setAddingIssueProjectId(null)}
+                          />
+                        )}
+                        {canAddIssue() && !isAddingIssue && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-fit text-xs"
+                            onClick={() => {
+                              setAddingRemarkProjectId(null);
+                              setAddingIssueProjectId(project.id);
+                            }}
+                          >
+                            <Plus className="mr-1 h-3 w-3" />
+                            이슈 작성
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell>
-                      {projectRemarks.length > 0 ? (
-                        <ul className="space-y-2">
-                          {projectRemarks.map((remark) => (
-                            <li
-                              key={remark.id}
-                              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-snug text-slate-800"
-                            >
-                              {formatRemarkLine(remark)}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        !isAddingRemark && (
-                          <span className="text-sm text-muted-foreground">
-                            등록된 비고 없음
-                          </span>
-                        )
-                      )}
-                      {isAddingRemark && (
-                        <ProjectRemarkInputRow
-                          projectId={project.id}
-                          weekStartISO={weekStartISO}
-                          onDone={() => setAddingRemarkProjectId(null)}
-                        />
-                      )}
-                      {canAddIssue() && !isAddingRemark && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-2 h-8 text-xs"
-                          onClick={() => {
-                            setAddingIssueProjectId(null);
-                            setAddingRemarkProjectId(project.id);
-                          }}
-                        >
-                          <Plus className="mr-1 h-3 w-3" />
-                          비고 작성
-                        </Button>
-                      )}
+                    <TableCell className="min-w-[240px] whitespace-normal px-4 py-4 align-top">
+                      <div className="flex flex-col gap-3">
+                        {projectRemarks.length > 0 ? (
+                          <ul className="space-y-2">
+                            {projectRemarks.map((remark) => (
+                              <li
+                                key={remark.id}
+                                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-slate-800"
+                              >
+                                {formatRemarkLine(remark)}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          !isAddingRemark && (
+                            <p className="text-sm text-muted-foreground">
+                              등록된 비고 없음
+                            </p>
+                          )
+                        )}
+                        {isAddingRemark && (
+                          <ProjectRemarkInputRow
+                            projectId={project.id}
+                            weekStartISO={weekStartISO}
+                            onDone={() => setAddingRemarkProjectId(null)}
+                          />
+                        )}
+                        {canAddIssue() && !isAddingRemark && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-fit text-xs"
+                            onClick={() => {
+                              setAddingIssueProjectId(null);
+                              setAddingRemarkProjectId(project.id);
+                            }}
+                          >
+                            <Plus className="mr-1 h-3 w-3" />
+                            비고 작성
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
