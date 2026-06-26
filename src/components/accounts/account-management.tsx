@@ -48,8 +48,13 @@ import {
 } from "@/components/ui/table";
 
 export function AccountManagement() {
-  const { users, addUser, updateUserRole, updateUserPart, currentUser } =
-    useApp();
+  const {
+    users,
+    addUser,
+    updateUserRole,
+    updateUserPart,
+    canManageAccounts,
+  } = useApp();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -59,13 +64,13 @@ export function AccountManagement() {
     part: "PLANNING" as UserPart,
   });
 
-  if (currentUser?.role !== "MASTER") {
+  if (!canManageAccounts()) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Shield className="h-12 w-12 text-muted-foreground" />
         <p className="mt-4 text-lg font-medium">접근 권한이 없습니다</p>
         <p className="text-sm text-muted-foreground">
-          계정 관리는 MASTER 권한만 접근할 수 있습니다.
+          계정 관리는 Master·팀장 권한만 접근할 수 있습니다.
         </p>
       </div>
     );

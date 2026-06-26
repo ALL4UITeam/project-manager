@@ -1,0 +1,290 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  GanttChartSquare,
+  Plus,
+  LayoutTemplate,
+  Search,
+} from "lucide-react";
+import { format } from "date-fns";
+import { useApp } from "@/context/app-context";
+import type { ScheduleRow } from "@/types";
+import {
+  buildScheduleWeekColumnsForRows,
+  rowOverlapsYear,
+} from "@/lib/schedule-utils";
+import {
+  SCHEDULE_TEMPLATE_LABELS,
+  type ScheduleTemplateId,
+} from "@/lib/schedule-templates";
+import {
+  filterProjectsBySearch,
+  filterProjectsByYear,
+  getAvailableYears,
+  getDefaultSelectedYear,
+} from "@/lib/project-utils";
+import { PageHeader } from "@/components/shared/page-header";
+import { YearFilterSelect } from "@/components/shared/year-filter-select";
+import { ScheduleRowDialog } from "@/components/calendar/schedule-row-dialog";
+import { ScheduleGanttProjectPanel } from "@/components/calendar/schedule-gantt-project-panel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+
+const TEMPLATE_IDS = Object.keys(SCHEDULE_TEMPLATE_LABELS) as ScheduleTemplateId[];
+
+export function ScheduleGanttView() {
+  const {
+    projects,
+    getProjectById,
+    getScheduleRowsByProject,
+    applyScheduleTemplate,
+    deleteScheduleRow,
+    updateScheduleRow,
+    canEditCalendar,
+  } = useApp();
+
+  const canEdit = canEditCalendar();
+  const availableYears = useMemo(() => getAvailableYears(projects), [projects]);
+  const [selectedYear, setSelectedYear] = useState(() =>
+    getDefaultSelectedYear(availableYears)
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+
+  const yearProjects = useMemo(
+    () => filterProjectsByYear(projects, selectedYear),
+    [projects, selectedYear]
+  );
+
+  const filteredProjects = useMemo(
+    () => filterProjectsBySearch(yearProjects, searchQuery),
+    [yearProjects, searchQuery]
+  );
+
+  useEffect(() => {
+    if (filteredProjects.length === 0) {
+      setSelectedProjectId("");
+      return;
+    }
+    if (!filteredProjects.some((p) => p.id === selectedProjectId)) {
+      const withSchedule = filteredProjects.find((p) =>
+        getScheduleRowsByProject(p.id).some((r) =>
+          rowOverlapsYear(r, selectedYear)
+        )
+      );
+      setSelectedProjectId(withSchedule?.id ?? filteredProjects[0].id);
+    }
+  }, [
+    filteredProjects,
+    selectedProjectId,
+    selectedYear,
+    getScheduleRowsByProject,
+  ]);
+
+  const project = selectedProjectId
+    ? getProjectById(selectedProjectId)
+    : undefined;
+
+  const rows = useMemo(() => {
+    if (!selectedProjectId) return [];
+    return getScheduleRowsByProject(selectedProjectId).filter((r) =>
+      rowOverlapsYear(r, selectedYear)
+    );
+  }, [selectedProjectId, selectedYear, getScheduleRowsByProject]);
+
+  const columns = useMemo(
+    () => buildScheduleWeekColumnsForRows(rows, selectedYear),
+    [rows, selectedYear]
+  );
+
+  const [rowDialogOpen, setRowDialogOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState<ScheduleRow | null>(null);
+  const [templateAnchor, setTemplateAnchor] = useState(
+    format(new Date(), "yyyy-MM-dd")
+  );
+
+  const openCreateRow = () => {
+    setEditingRow(null);
+    setRowDialogOpen(true);
+  };
+
+  const openEditRow = (row: ScheduleRow) => {
+    setEditingRow(row);
+    setRowDialogOpen(true);
+  };
+
+  const handleDeleteRow = (row: ScheduleRow) => {
+    if (!canEdit) return;
+    if (window.confirm(`"${row.taskName}" 일정을 삭제할까요?`)) {
+      deleteScheduleRow(row.id);
+    }
+  };
+
+  const handleUpdateRemarks = (id: string, remarks: string) => {
+    if (!canEdit) return;
+    updateScheduleRow(id, { remarks: remarks || undefined });
+  };
+
+  const handleApplyTemplate = (templateId: ScheduleTemplateId) => {
+    if (!selectedProjectId || !canEdit) return;
+    applyScheduleTemplate(selectedProjectId, templateId, templateAnchor);
+  };
+
+  return (
+    <>
+      <PageHeader
+        icon={GanttChartSquare}
+        iconClassName="bg-emerald-500/10 text-emerald-600 ring-emerald-500/15"
+        title="프로젝트 일정표"
+        description="연도 · 프로젝트별 WBS 간트"
+      >
+        {canEdit && selectedProjectId && (
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <LayoutTemplate className="mr-1.5 h-4 w-4" />
+                  WBS 템플릿
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                {TEMPLATE_IDS.map((id) => (
+                  <DropdownMenuItem
+                    key={id}
+                    onClick={() => handleApplyTemplate(id)}
+                  >
+                    {SCHEDULE_TEMPLATE_LABELS[id]} 추가
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button size="sm" onClick={openCreateRow}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              행 추가
+            </Button>
+          </>
+        )}
+      </PageHeader>
+
+      <Card className="glass-card border-0">
+        <CardContent className="space-y-3 p-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground">연도</p>
+              <YearFilterSelect
+                years={availableYears}
+                value={selectedYear}
+                onChange={setSelectedYear}
+                className="w-28 h-8"
+              />
+            </div>
+            <div className="min-w-[180px] flex-1 space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground">
+                프로젝트 검색
+              </p>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="코드 또는 프로젝트명"
+                  className="h-8 pl-8 text-xs"
+                />
+              </div>
+            </div>
+            {canEdit && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  템플릿 기준일
+                </p>
+                <Input
+                  type="date"
+                  className="h-8 w-36 text-xs"
+                  value={templateAnchor}
+                  onChange={(e) => setTemplateAnchor(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+          {filteredProjects.length > 0 && (
+            <Tabs
+              value={selectedProjectId}
+              onValueChange={setSelectedProjectId}
+              className="gap-0"
+            >
+              <div className="overflow-x-auto">
+                <TabsList className="inline-flex h-auto w-max max-w-full gap-1 bg-muted/50 p-1">
+                  {filteredProjects.map((p) => {
+                    const count = getScheduleRowsByProject(p.id).filter((r) =>
+                      rowOverlapsYear(r, selectedYear)
+                    ).length;
+                    return (
+                      <TabsTrigger
+                        key={p.id}
+                        value={p.id}
+                        className={cn(
+                          "h-8 shrink-0 px-3 text-xs data-[state=active]:shadow-sm",
+                          "flex flex-col items-start gap-0 py-1 leading-none"
+                        )}
+                        title={p.name}
+                      >
+                        <span className="font-numeric font-bold">{p.code}</span>
+                        <span className="mt-0.5 text-[9px] font-normal text-muted-foreground">
+                          WBS {count}
+                        </span>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </div>
+            </Tabs>
+          )}
+        </CardContent>
+      </Card>
+
+      {filteredProjects.length === 0 ? (
+        <Card className="glass-card border-0">
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            {searchQuery.trim()
+              ? `"${searchQuery}"에 해당하는 ${selectedYear}년 프로젝트가 없습니다`
+              : `${selectedYear}년에 해당하는 프로젝트가 없습니다`}
+          </CardContent>
+        </Card>
+      ) : (
+        project && (
+          <ScheduleGanttProjectPanel
+            project={project}
+            selectedYear={selectedYear}
+            rows={rows}
+            columns={columns}
+            canEdit={canEdit}
+            onEdit={openEditRow}
+            onDelete={handleDeleteRow}
+            onUpdateRemarks={handleUpdateRemarks}
+            showSharePanel
+          />
+        )
+      )}
+
+      {selectedProjectId && (
+        <ScheduleRowDialog
+          open={rowDialogOpen}
+          onOpenChange={setRowDialogOpen}
+          projectId={selectedProjectId}
+          editing={editingRow}
+        />
+      )}
+    </>
+  );
+}

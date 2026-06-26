@@ -21,6 +21,8 @@ import {
 } from "@/components/issues/issue-components";
 import { RemarkList } from "@/components/issues/remark-components";
 import { ProjectPartLinks } from "@/components/projects/project-part-links";
+import { IssueSearchInput } from "@/components/shared/issue-search-input";
+import { filterIssuesBySearch } from "@/lib/issue-utils";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,6 +68,19 @@ export function ProjectDetailView({
 
   const projectIssues = getIssuesByProject(project.id);
   const projectRemarks = getRemarksByProject(project.id);
+  const [issueSearchQuery, setIssueSearchQuery] = useState("");
+
+  const filteredProjectIssues = useMemo(
+    () =>
+      filterIssuesBySearch(projectIssues, issueSearchQuery, {
+        getAuthorName: (userId) => getUserById(userId)?.name,
+      }),
+    [projectIssues, issueSearchQuery, getUserById]
+  );
+
+  useEffect(() => {
+    setIssueSearchQuery("");
+  }, [project.id]);
 
   const projectTasks = useMemo(
     () => weeklyTasks.filter((t) => t.projectId === project.id),
@@ -201,7 +216,28 @@ export function ProjectDetailView({
         }
         contentClassName="max-h-80 overflow-y-auto"
       >
-        <IssueList issues={projectIssues} />
+        {projectIssues.length > 0 && (
+          <div className="mb-3 space-y-1">
+            <IssueSearchInput
+              value={issueSearchQuery}
+              onChange={setIssueSearchQuery}
+            />
+            {issueSearchQuery.trim() && (
+              <p className="text-xs text-muted-foreground">
+                검색 결과 {filteredProjectIssues.length}건 / 전체{" "}
+                {projectIssues.length}건
+              </p>
+            )}
+          </div>
+        )}
+        <IssueList
+          issues={filteredProjectIssues}
+          emptyMessage={
+            issueSearchQuery.trim()
+              ? `「${issueSearchQuery}」 검색 결과가 없습니다`
+              : "등록된 이슈가 없습니다"
+          }
+        />
       </CollapsibleSection>
 
       <CollapsibleSection

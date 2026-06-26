@@ -33,6 +33,7 @@ import { WEEKDAY_LABELS } from "@/lib/week-utils";
 import { GlobalProjectFilter } from "@/components/shared/global-project-filter";
 import { PageHeader } from "@/components/shared/page-header";
 import { CalendarEventDialog } from "@/components/calendar/calendar-event-dialog";
+import { ScheduleGanttView } from "@/components/calendar/schedule-gantt-view";
 import { useKoreanHolidays } from "@/hooks/use-korean-holidays";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -88,7 +89,31 @@ function dayHeaderStyle(d: string) {
   return "text-muted-foreground";
 }
 
-export function CalendarView() {
+function CalendarPageTabs({
+  mode,
+  onChange,
+}: {
+  mode: "calendar" | "gantt";
+  onChange: (mode: "calendar" | "gantt") => void;
+}) {
+  return (
+    <Tabs
+      value={mode}
+      onValueChange={(v) => onChange(v as "calendar" | "gantt")}
+    >
+      <TabsList className="h-9">
+        <TabsTrigger value="gantt" className="text-xs sm:text-sm">
+          프로젝트 일정표
+        </TabsTrigger>
+        <TabsTrigger value="calendar" className="text-xs sm:text-sm">
+          캘린더
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
+}
+
+function CalendarMonthPanel() {
   const {
     milestones,
     currentUser,
@@ -156,7 +181,7 @@ export function CalendarView() {
     useKoreanHolidays(holidayYears);
 
   return (
-    <div className="page-stack">
+    <>
       <PageHeader
         icon={CalendarIcon}
         iconClassName="bg-emerald-500/10 text-emerald-600 ring-emerald-500/15"
@@ -424,6 +449,17 @@ export function CalendarView() {
         selectedDate={selectedDate}
         editing={editing}
       />
+    </>
+  );
+}
+
+export function CalendarView() {
+  const [pageMode, setPageMode] = useState<"calendar" | "gantt">("gantt");
+
+  return (
+    <div className="page-stack">
+      <CalendarPageTabs mode={pageMode} onChange={setPageMode} />
+      {pageMode === "gantt" ? <ScheduleGanttView /> : <CalendarMonthPanel />}
     </div>
   );
 }

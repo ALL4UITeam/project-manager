@@ -26,6 +26,9 @@ import {
 } from "@/lib/project-utils";
 import { YearFilterSelect } from "@/components/shared/year-filter-select";
 import { ProjectSearchInput } from "@/components/shared/project-search-input";
+import { IssueSearchInput } from "@/components/shared/issue-search-input";
+import { IssueList } from "@/components/issues/issue-components";
+import { filterIssuesBySearch } from "@/lib/issue-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -238,6 +241,8 @@ export function ProjectStatusBoard() {
     updateProject,
     canEditProject,
     canEditAssignee,
+    getUserById,
+    getProjectById,
   } = useApp();
 
   const availableYears = useMemo(() => getAvailableYears(projects), [projects]);
@@ -250,6 +255,7 @@ export function ProjectStatusBoard() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [issueSearchQuery, setIssueSearchQuery] = useState("");
 
   const yearProjects = useMemo(() => {
     const byYear = filterProjectsByYear(projects, selectedYear);
@@ -260,6 +266,31 @@ export function ProjectStatusBoard() {
   const displayProjects = useMemo(
     () => filterProjectsBySearch(yearProjects, searchQuery),
     [yearProjects, searchQuery]
+  );
+
+  const yearProjectIds = useMemo(
+    () => new Set(yearProjects.map((p) => p.id)),
+    [yearProjects]
+  );
+
+  const yearIssues = useMemo(
+    () =>
+      projectIssues
+        .filter((i) => yearProjectIds.has(i.projectId))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [projectIssues, yearProjectIds]
+  );
+
+  const filteredIssues = useMemo(
+    () =>
+      filterIssuesBySearch(yearIssues, issueSearchQuery, {
+        getAuthorName: (userId) => getUserById(userId)?.name,
+        getProjectLabel: (projectId) => {
+          const p = getProjectById(projectId);
+          return p ? `${p.code} ${p.name}` : undefined;
+        },
+      }),
+    [yearIssues, issueSearchQuery, getUserById, getProjectById]
   );
 
   const selectedProject = selectedId
@@ -298,9 +329,11 @@ export function ProjectStatusBoard() {
           onChange={(y) => {
             setSelectedYear(y);
             setSearchQuery("");
+            setIssueSearchQuery("");
           }}
         />
         <ProjectSearchInput value={searchQuery} onChange={setSearchQuery} />
+        <IssueSearchInput value={issueSearchQuery} onChange={setIssueSearchQuery} />
         <GlobalProjectFilter />
         {canEditProject() && (
           <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
@@ -311,6 +344,26 @@ export function ProjectStatusBoard() {
       </PageHeader>
 
       <StatusLegend />
+
+      {issueSearchQuery.trim() && (
+        <Card className="border-orange-200/80 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">
+              이슈 검색 결과 ({filteredIssues.length}건)
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {selectedYear}년 프로젝트 · 「{issueSearchQuery}」
+            </p>
+          </CardHeader>
+          <CardContent className="max-h-96 overflow-y-auto pt-0">
+            <IssueList
+              issues={filteredIssues}
+              showProject
+              emptyMessage={`「${issueSearchQuery}」 검색 결과가 없습니다`}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-3">

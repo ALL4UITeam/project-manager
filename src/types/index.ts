@@ -38,6 +38,10 @@ export interface Project {
   assigneePrimary: string;
   /** 담당 부 (없으면 표시하지 않음) */
   assigneeSecondary?: string;
+  /** 프로젝트 일정표 링크 공유 토큰 */
+  scheduleShareToken?: string;
+  /** 링크 공유 활성화 — 프로젝트 WBS 일정표 전체 */
+  scheduleLinkShareEnabled?: boolean;
 }
 
 export interface ProjectIssue {
@@ -91,6 +95,55 @@ export interface CalendarMilestone {
   /** UI팀 관리 일정(연차·팀 일정) — 보라색 표시 */
   isTeamAdmin?: boolean;
 }
+
+/** 프로젝트 WBS 간트 일정 행 (서비스 → 파트 → 상세업무) */
+export interface ScheduleRow {
+  id: string;
+  projectId: string;
+  /** 서비스 구분 (예: Mobile, PC Web) */
+  service: string;
+  part: WorkPart;
+  taskName: string;
+  startDate: string;
+  endDate: string;
+  sortOrder: number;
+  /** 행 단위 비고 (간트 우측 열) */
+  remarks?: string;
+}
+
+/** 프로젝트 일정표 하단·우측 마일스톤 비고 */
+export interface ScheduleNote {
+  id: string;
+  projectId: string;
+  date?: string;
+  content: string;
+  sortOrder: number;
+  isShared?: boolean;
+}
+
+export const PART_GANTT_COLORS: Record<WorkPart, string> = {
+  기획: "#facc15",
+  디자인: "#4ade80",
+  퍼블리싱: "#60a5fa",
+};
+
+export const PART_GANTT_BG: Record<WorkPart, string> = {
+  기획: "bg-yellow-400",
+  디자인: "bg-emerald-400",
+  퍼블리싱: "bg-sky-400",
+};
+
+export const PART_GANTT_ROW_BG: Record<WorkPart, string> = {
+  기획: "bg-yellow-50/80",
+  디자인: "bg-emerald-50/80",
+  퍼블리싱: "bg-sky-50/80",
+};
+
+export const PART_GANTT_TEXT: Record<WorkPart, string> = {
+  기획: "text-yellow-900",
+  디자인: "text-emerald-900",
+  퍼블리싱: "text-sky-900",
+};
 
 export interface MeetingNote {
   id: string;

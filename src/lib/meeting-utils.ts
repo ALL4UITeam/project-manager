@@ -17,3 +17,10 @@ export function getMeetingShareUrl(shareToken: string) {
   }
   return `${window.location.origin}/share/meetings/${shareToken}`;
 }
+
+export function getScheduleShareUrl(shareToken: string) {
+  if (typeof window === "undefined") {
+    return `/share/schedule/${shareToken}`;
+  }
+  return `${window.location.origin}/share/schedule/${shareToken}`;
+}

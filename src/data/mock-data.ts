@@ -107,6 +107,8 @@ export const mockProjects: Project[] = [
     endDate: "2026-08-31",
     status: "진행",
     assigneePrimary: "박지혜",
+    scheduleShareToken: "demo-af02hp-schedule",
+    scheduleLinkShareEnabled: true,
   },
   {
     id: "p-af05",

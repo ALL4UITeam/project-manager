@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -17,6 +18,12 @@ import {
   mockProjectRemarks,
   mockProjectResourceLinks,
 } from "@/data/mock-data";
+import {
+  mockScheduleRows,
+  mockScheduleNotes,
+} from "@/data/mock-schedule";
+import { loadAppSnapshot, saveAppSnapshot } from "@/lib/app-storage";
+import { buildRowsFromTemplate, type ScheduleTemplateId } from "@/lib/schedule-templates";
 import { getWeekStartFromDate } from "@/lib/week-utils";
 import { generateShareToken } from "@/lib/meeting-utils";
 import type {
@@ -30,6 +37,8 @@ import type {
   ProjectIssue,
   ProjectRemark,
   ProjectResourceLink,
+  ScheduleRow,
+  ScheduleNote,
   WorkPart,
   TaskType,
   TaskStatus,
@@ -54,6 +63,8 @@ interface AppContextValue {
   projectIssues: ProjectIssue[];
   projectRemarks: ProjectRemark[];
   projectResourceLinks: ProjectResourceLink[];
+  scheduleRows: ScheduleRow[];
+  scheduleNotes: ScheduleNote[];
   meetingMode: boolean;
   projectFilter: string;
   setMeetingMode: (value: boolean) => void;
@@ -72,6 +83,19 @@ interface AppContextValue {
   updateMilestone: (id: string, data: Partial<CalendarMilestone>) => void;
   deleteMilestone: (id: string) => void;
   canEditCalendar: () => boolean;
+  addScheduleRow: (row: Omit<ScheduleRow, "id">) => ScheduleRow;
+  updateScheduleRow: (id: string, data: Partial<ScheduleRow>) => void;
+  deleteScheduleRow: (id: string) => void;
+  getScheduleRowsByProject: (projectId: string) => ScheduleRow[];
+  applyScheduleTemplate: (
+    projectId: string,
+    templateId: ScheduleTemplateId,
+    anchorDate: string
+  ) => void;
+  addScheduleNote: (note: Omit<ScheduleNote, "id">) => ScheduleNote;
+  updateScheduleNote: (id: string, data: Partial<ScheduleNote>) => void;
+  deleteScheduleNote: (id: string) => void;
+  getScheduleNotesByProject: (projectId: string) => ScheduleNote[];
   addProjectIssue: (issue: Omit<ProjectIssue, "id" | "weekStart" | "userId">) => void;
   getIssuesByProject: (projectId: string) => ProjectIssue[];
   getIssuesByWeek: (weekStart: string) => ProjectIssue[];
@@ -97,6 +121,8 @@ interface AppContextValue {
   updateUserPart: (id: string, part: UserPart) => void;
   getUserById: (id: string) => User | undefined;
   getProjectById: (id: string) => Project | undefined;
+  getProjectByScheduleShareToken: (token: string) => Project | undefined;
+  setProjectScheduleLinkShare: (projectId: string, enabled: boolean) => void;
   filteredProjects: Project[];
   filteredWeeklyTasks: WeeklyTask[];
   canAccess: (menu: MenuKey) => boolean;
@@ -105,16 +131,23 @@ interface AppContextValue {
   canViewAllReports: () => boolean;
   canEditTask: (userId: string) => boolean;
   canAddIssue: () => boolean;
+  canManageAccounts: () => boolean;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 const MENU_ACCESS: Record<UserRole, MenuKey[]> = {
   MASTER: ["projects", "reports", "calendar", "md", "accounts", "meetings"],
-  LEADER: ["projects", "reports", "calendar", "md", "meetings"],
-  MEMBER: ["projects", "reports", "calendar"],
+  LEADER: ["projects", "reports", "calendar", "md", "accounts", "meetings"],
+  MEMBER: ["projects", "reports", "calendar", "md", "meetings"],
   EXTERNAL: ["calendar"],
 };
+
+const STAFF_ROLES: UserRole[] = ["MASTER", "LEADER", "MEMBER"];
+
+function isStaffRole(role: UserRole | undefined): role is UserRole {
+  return !!role && STAFF_ROLES.includes(role);
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -132,8 +165,64 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [projectResourceLinks, setProjectResourceLinks] = useState<
     ProjectResourceLink[]
   >(mockProjectResourceLinks);
+  const [scheduleRows, setScheduleRows] =
+    useState<ScheduleRow[]>(mockScheduleRows);
+  const [scheduleNotes, setScheduleNotes] =
+    useState<ScheduleNote[]>(mockScheduleNotes);
   const [meetingMode, setMeetingMode] = useState(false);
   const [projectFilter, setProjectFilter] = useState("all");
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    const snapshot = loadAppSnapshot();
+    if (snapshot) {
+      setUsers(snapshot.users);
+      setProjects(snapshot.projects);
+      setWeeklyTasks(snapshot.weeklyTasks);
+      setMilestones(snapshot.milestones);
+      setMeetingNotes(snapshot.meetingNotes);
+      setProjectIssues(snapshot.projectIssues);
+      setProjectRemarks(snapshot.projectRemarks);
+      setProjectResourceLinks(snapshot.projectResourceLinks);
+      setScheduleRows(snapshot.scheduleRows);
+      setScheduleNotes(snapshot.scheduleNotes);
+      if (snapshot.currentUserId) {
+        const user = snapshot.users.find((u) => u.id === snapshot.currentUserId);
+        if (user) setCurrentUser(user);
+      }
+    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    saveAppSnapshot({
+      currentUserId: currentUser?.id ?? null,
+      users,
+      projects,
+      weeklyTasks,
+      milestones,
+      meetingNotes,
+      projectIssues,
+      projectRemarks,
+      projectResourceLinks,
+      scheduleRows,
+      scheduleNotes,
+    });
+  }, [
+    hydrated,
+    currentUser,
+    users,
+    projects,
+    weeklyTasks,
+    milestones,
+    meetingNotes,
+    projectIssues,
+    projectRemarks,
+    projectResourceLinks,
+    scheduleRows,
+    scheduleNotes,
+  ]);
 
   const login = useCallback(
     (email: string, password: string) => {
@@ -235,6 +324,81 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return currentUser.role !== "EXTERNAL";
   }, [currentUser]);
 
+  const addScheduleRow = useCallback((row: Omit<ScheduleRow, "id">) => {
+    const created: ScheduleRow = { ...row, id: `sr-${Date.now()}` };
+    setScheduleRows((prev) => [...prev, created]);
+    return created;
+  }, []);
+
+  const updateScheduleRow = useCallback(
+    (id: string, data: Partial<ScheduleRow>) => {
+      setScheduleRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, ...data } : r))
+      );
+    },
+    []
+  );
+
+  const deleteScheduleRow = useCallback((id: string) => {
+    setScheduleRows((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  const getScheduleRowsByProject = useCallback(
+    (projectId: string) =>
+      scheduleRows
+        .filter((r) => r.projectId === projectId)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [scheduleRows]
+  );
+
+  const applyScheduleTemplate = useCallback(
+    (projectId: string, templateId: ScheduleTemplateId, anchorDate: string) => {
+      const existing = scheduleRows.filter((r) => r.projectId === projectId);
+      const maxOrder = existing.reduce(
+        (max, r) => Math.max(max, r.sortOrder),
+        -1
+      );
+      const newRows = buildRowsFromTemplate(
+        projectId,
+        templateId,
+        anchorDate,
+        maxOrder + 1
+      );
+      setScheduleRows((prev) => [
+        ...prev,
+        ...newRows.map((row) => ({ ...row, id: `sr-${Date.now()}-${row.sortOrder}` })),
+      ]);
+    },
+    [scheduleRows]
+  );
+
+  const addScheduleNote = useCallback((note: Omit<ScheduleNote, "id">) => {
+    const created: ScheduleNote = { ...note, id: `sn-${Date.now()}` };
+    setScheduleNotes((prev) => [...prev, created]);
+    return created;
+  }, []);
+
+  const updateScheduleNote = useCallback(
+    (id: string, data: Partial<ScheduleNote>) => {
+      setScheduleNotes((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, ...data } : n))
+      );
+    },
+    []
+  );
+
+  const deleteScheduleNote = useCallback((id: string) => {
+    setScheduleNotes((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const getScheduleNotesByProject = useCallback(
+    (projectId: string) =>
+      scheduleNotes
+        .filter((n) => n.projectId === projectId)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [scheduleNotes]
+  );
+
   const addProjectIssue = useCallback(
     (issue: Omit<ProjectIssue, "id" | "weekStart" | "userId">) => {
       if (!currentUser) return;
@@ -325,7 +489,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (part: WorkPart) => {
       if (!currentUser) return false;
       if (currentUser.role === "EXTERNAL") return false;
-      if (["MASTER", "LEADER"].includes(currentUser.role)) return true;
+      if (isStaffRole(currentUser.role)) return true;
       return USER_PART_TO_WORK[currentUser.part] === part;
     },
     [currentUser]
@@ -415,6 +579,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [projects]
   );
 
+  const getProjectByScheduleShareToken = useCallback(
+    (token: string) => {
+      const project = projects.find((p) => p.scheduleShareToken === token);
+      if (!project?.scheduleLinkShareEnabled) return undefined;
+      return project;
+    },
+    [projects]
+  );
+
+  const setProjectScheduleLinkShare = useCallback(
+    (projectId: string, enabled: boolean) => {
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.id !== projectId) return p;
+          const token = p.scheduleShareToken ?? generateShareToken();
+          return {
+            ...p,
+            scheduleShareToken: token,
+            scheduleLinkShareEnabled: enabled,
+          };
+        })
+      );
+    },
+    []
+  );
+
   const filteredProjects = useMemo(() => {
     if (projectFilter === "all") return projects;
     return projects.filter((p) => p.id === projectFilter);
@@ -435,18 +625,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const canEditProject = useCallback(() => {
     if (!currentUser) return false;
-    return ["MASTER", "LEADER"].includes(currentUser.role);
+    return isStaffRole(currentUser.role);
   }, [currentUser]);
 
   const canViewAllReports = useCallback(() => {
     if (!currentUser) return false;
-    return ["MASTER", "LEADER"].includes(currentUser.role);
+    return isStaffRole(currentUser.role);
   }, [currentUser]);
 
   const canEditTask = useCallback(
     (userId: string) => {
       if (!currentUser) return false;
-      if (["MASTER", "LEADER"].includes(currentUser.role)) return true;
+      if (isStaffRole(currentUser.role)) return true;
       return currentUser.id === userId;
     },
     [currentUser]
@@ -454,7 +644,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const canEditAssignee = useCallback(() => {
     if (!currentUser) return false;
-    return currentUser.role === "MASTER";
+    return isStaffRole(currentUser.role);
+  }, [currentUser]);
+
+  const canManageAccounts = useCallback(() => {
+    if (!currentUser) return false;
+    return ["MASTER", "LEADER"].includes(currentUser.role);
   }, [currentUser]);
 
   const canAddIssue = useCallback(() => {
@@ -473,6 +668,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       projectIssues,
       projectRemarks,
       projectResourceLinks,
+      scheduleRows,
+      scheduleNotes,
       meetingMode,
       projectFilter,
       setMeetingMode,
@@ -491,6 +688,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateMilestone,
       deleteMilestone,
       canEditCalendar,
+      addScheduleRow,
+      updateScheduleRow,
+      deleteScheduleRow,
+      getScheduleRowsByProject,
+      applyScheduleTemplate,
+      addScheduleNote,
+      updateScheduleNote,
+      deleteScheduleNote,
+      getScheduleNotesByProject,
       addProjectIssue,
       getIssuesByProject,
       getIssuesByWeek,
@@ -512,6 +718,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateUserPart,
       getUserById,
       getProjectById,
+      getProjectByScheduleShareToken,
+      setProjectScheduleLinkShare,
       filteredProjects,
       filteredWeeklyTasks,
       canAccess,
@@ -520,6 +728,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       canViewAllReports,
       canEditTask,
       canAddIssue,
+      canManageAccounts,
     }),
     [
       currentUser,
@@ -531,6 +740,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       projectIssues,
       projectRemarks,
       projectResourceLinks,
+      scheduleRows,
+      scheduleNotes,
       meetingMode,
       projectFilter,
       login,
@@ -547,6 +758,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateMilestone,
       deleteMilestone,
       canEditCalendar,
+      addScheduleRow,
+      updateScheduleRow,
+      deleteScheduleRow,
+      getScheduleRowsByProject,
+      applyScheduleTemplate,
+      addScheduleNote,
+      updateScheduleNote,
+      deleteScheduleNote,
+      getScheduleNotesByProject,
       addProjectIssue,
       getIssuesByProject,
       getIssuesByWeek,
@@ -568,6 +788,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateUserPart,
       getUserById,
       getProjectById,
+      getProjectByScheduleShareToken,
+      setProjectScheduleLinkShare,
       filteredProjects,
       filteredWeeklyTasks,
       canAccess,
@@ -576,6 +798,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       canViewAllReports,
       canEditTask,
       canAddIssue,
+      canManageAccounts,
       canEditMeetingNote,
     ]
   );
