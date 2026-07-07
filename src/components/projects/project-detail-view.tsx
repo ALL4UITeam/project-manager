@@ -23,6 +23,7 @@ import { RemarkList } from "@/components/issues/remark-components";
 import { ProjectPartLinks } from "@/components/projects/project-part-links";
 import { IssueSearchInput } from "@/components/shared/issue-search-input";
 import { filterIssuesBySearch } from "@/lib/issue-utils";
+import { meetingsViewPath } from "@/lib/app-routes";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -453,7 +454,7 @@ export function ProjectDetailView({
             {projectMeetings.map((note) => (
               <Link
                 key={note.id}
-                href="/meetings"
+                href={meetingsViewPath(note.id, project.id)}
                 className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm transition-colors hover:bg-muted/40"
               >
                 <span className="font-medium">{note.title}</span>

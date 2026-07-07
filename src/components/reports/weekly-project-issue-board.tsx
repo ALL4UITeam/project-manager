@@ -8,6 +8,7 @@ import { useApp } from "@/context/app-context";
 import { ProjectStatusBadge } from "@/components/shared/project-status-badge";
 import { ProjectPmCell, ProjectAssigneeCell } from "@/components/shared/project-pm-cell";
 import { formatRemarkLine } from "@/components/issues/remark-components";
+import { IssueStatusEditor } from "@/components/issues/issue-components";
 import { formatWeekRange, getWeekBoundsForYear } from "@/lib/week-utils";
 import { sortProjectsForDisplay } from "@/lib/project-utils";
 import { cn } from "@/lib/utils";
@@ -237,7 +238,8 @@ export function WeeklyProjectIssueBoard({
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2 pl-10">
               <CardDescription className="m-0 text-xs">
-                {formatWeekRange(weekStart)} · 진행 이슈 유지
+                {formatWeekRange(weekStart)} · 진행 이슈 유지 · 완료는 변경 후 이번 주에
+                표시
               </CardDescription>
               <Badge variant="secondary" className="h-6 text-[11px]">
                 이슈 {reportIssues.length}
@@ -394,33 +396,13 @@ export function WeeklyProjectIssueBoard({
                                         </Badge>
                                       )}
                                       {canAddIssue() && (
-                                        <Select
-                                          value={issue.status}
-                                          onValueChange={(v) =>
-                                            updateProjectIssue(issue.id, {
-                                              status: v as IssueStatus,
-                                            })
-                                          }
-                                        >
-                                          <SelectTrigger className="h-5 w-[60px] border-0 bg-transparent px-1 text-[10px] shadow-none">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {(
-                                              Object.keys(
-                                                ISSUE_STATUS_LABELS
-                                              ) as IssueStatus[]
-                                            ).map((s) => (
-                                              <SelectItem
-                                                key={s}
-                                                value={s}
-                                                className="text-xs"
-                                              >
-                                                {ISSUE_STATUS_LABELS[s]}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                        <IssueStatusEditor
+                                          issueId={issue.id}
+                                          status={issue.status}
+                                          reportWeekStart={weekStartISO}
+                                          compact
+                                          onUpdate={updateProjectIssue}
+                                        />
                                       )}
                                     </div>
                                     <p

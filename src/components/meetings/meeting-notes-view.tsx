@@ -80,41 +80,42 @@ function ProjectNoteList({
   };
 
   return (
-    <div className="space-y-4">
-      <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
+    <div className="flex flex-col gap-6">
+      <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 w-fit">
         <ArrowLeft className="mr-1 h-4 w-4" />
         {selectedYear}년 프로젝트 목록
       </Button>
 
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="font-mono text-sm font-semibold text-primary">
-              {project.code}
-            </p>
-            <h2 className="mt-1 text-xl font-bold">{project.name}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              PM {project.pmName} · {selectedYear}년 회의록 {notes.length}건
-            </p>
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="border-b border-primary/15 bg-primary/5 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-mono text-sm font-semibold text-primary">
+                {project.code}
+              </p>
+              <h2 className="mt-1 text-xl font-bold">{project.name}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                PM {project.pmName} · {selectedYear}년 회의록 {notes.length}건
+              </p>
+            </div>
+            <ProjectStatusBadge status={project.status} />
           </div>
-          <ProjectStatusBadge status={project.status} />
         </div>
-      </div>
 
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b pb-4">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-5 py-4">
+          <h3 className="flex items-center gap-2 text-base font-semibold">
             <FolderOpen className="h-4 w-4" />
             {selectedYear}년 회의록 ({notes.length}건)
-          </CardTitle>
+          </h3>
           {canEditMeetingNote() && (
             <Button size="sm" onClick={openCreate}>
               <Plus className="mr-1 h-4 w-4" />
               회의록 작성
             </Button>
           )}
-        </CardHeader>
-        <CardContent className="pt-4">
+        </div>
+
+        <div className="p-5">
           {sorted.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               {selectedYear}년에 등록된 회의록이 없습니다
@@ -127,7 +128,7 @@ function ProjectNoteList({
               )}
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-4">
               {sorted.map((note) => (
                 <MeetingNoteListItem
                   key={note.id}
@@ -137,8 +138,8 @@ function ProjectNoteList({
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

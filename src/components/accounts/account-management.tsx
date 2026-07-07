@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Shield, Users, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Shield, Users, UserPlus, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   FormDialogHeader,
@@ -13,6 +13,7 @@ import { useApp } from "@/context/app-context";
 import {
   ROLE_LABELS,
   PART_LABELS,
+  type User,
   type UserRole,
   type UserPart,
 } from "@/types";
@@ -47,22 +48,56 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+const emptyCreateForm = {
+  name: "",
+  email: "",
+  password: "",
+  role: "MEMBER" as UserRole,
+  part: "PLANNING" as UserPart,
+};
+
 export function AccountManagement() {
   const {
     users,
+    currentUser,
     addUser,
+    updateUser,
+    deleteUser,
     updateUserRole,
     updateUserPart,
     canManageAccounts,
+    canMasterManageUsers,
   } = useApp();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState(emptyCreateForm);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState({
     name: "",
     email: "",
     password: "",
     role: "MEMBER" as UserRole,
     part: "PLANNING" as UserPart,
   });
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+
+  const isMaster = canMasterManageUsers();
+
+  useEffect(() => {
+    if (editOpen && editingUser) {
+      setEditForm({
+        name: editingUser.name,
+        email: editingUser.email,
+        password: "",
+        role: editingUser.role,
+        part: editingUser.part,
+      });
+    }
+  }, [editOpen, editingUser]);
 
   if (!canManageAccounts()) {
     return (
@@ -77,15 +112,45 @@ export function AccountManagement() {
   }
 
   const handleCreate = () => {
-    addUser(form);
-    setForm({
-      name: "",
-      email: "",
-      password: "",
-      role: "MEMBER",
-      part: "PLANNING",
+    addUser(createForm);
+    setCreateForm(emptyCreateForm);
+    setCreateOpen(false);
+  };
+
+  const openEdit = (user: User) => {
+    setEditingUser(user);
+    setEditOpen(true);
+  };
+
+  const handleEditSave = () => {
+    if (!editingUser) return;
+    updateUser(editingUser.id, {
+      name: editForm.name,
+      email: editForm.email,
+      role: editForm.role,
+      part: editForm.part,
+      ...(editForm.password ? { password: editForm.password } : {}),
     });
-    setDialogOpen(false);
+    setEditOpen(false);
+    setEditingUser(null);
+  };
+
+  const openDelete = (user: User) => {
+    setDeletingUser(user);
+    setDeleteOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deletingUser) return;
+    deleteUser(deletingUser.id);
+    setDeleteOpen(false);
+    setDeletingUser(null);
+  };
+
+  const canDeleteUser = (user: User) => {
+    if (!isMaster) return false;
+    if (user.id === currentUser?.id) return false;
+    return true;
   };
 
   return (
@@ -94,9 +159,13 @@ export function AccountManagement() {
         icon={Users}
         iconClassName="bg-cyan-500/10 text-cyan-600 ring-cyan-500/15"
         title="계정 발급 및 권한 관리"
-        description="이름 · 소속 파트 · 권한을 지정하여 Mock 계정을 발급합니다"
+        description={
+          isMaster
+            ? "Master: 계정 생성 · 수정 · 삭제 · 권한/파트 변경"
+            : "팀장: 권한 및 파트 변경"
+        }
       >
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           신규 계정 발급
         </Button>
@@ -104,7 +173,7 @@ export function AccountManagement() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">발급된 계정 목록</CardTitle>
+          <CardTitle className="text-base">계정 목록</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -116,13 +185,14 @@ export function AccountManagement() {
                 <TableHead>권한</TableHead>
                 <TableHead>파트 변경</TableHead>
                 <TableHead>권한 변경</TableHead>
+                {isMaster && <TableHead className="w-28">관리</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
+                  <TableCell className="text-sm text-muted-foreground">
                     {user.email}
                   </TableCell>
                   <TableCell>
@@ -173,6 +243,35 @@ export function AccountManagement() {
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  {isMaster && (
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openEdit(user)}
+                          title="계정 수정"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => openDelete(user)}
+                          disabled={!canDeleteUser(user)}
+                          title={
+                            user.id === currentUser?.id
+                              ? "본인 계정은 삭제할 수 없습니다"
+                              : "계정 삭제"
+                          }
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -180,21 +279,24 @@ export function AccountManagement() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* 신규 생성 */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg">
           <FormDialogHeader
             icon={UserPlus}
             accent="cyan"
             title="신규 계정 발급"
-            description="이름 · 이메일 · 파트 · 권한을 설정해 Mock 계정을 생성합니다."
+            description="이름 · 이메일 · 파트 · 권한을 설정해 계정을 생성합니다."
           />
           <DialogBody className="space-y-4">
             <FormDialogSection title="계정 정보">
               <FormField label="이름" required>
                 <Input
                   className={formInputClassName()}
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  value={createForm.name}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, name: e.target.value })
+                  }
                   placeholder="홍길동"
                 />
               </FormField>
@@ -202,8 +304,10 @@ export function AccountManagement() {
                 <Input
                   type="email"
                   className={formInputClassName()}
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  value={createForm.email}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, email: e.target.value })
+                  }
                   placeholder="name@all4land.com"
                 />
               </FormField>
@@ -211,22 +315,21 @@ export function AccountManagement() {
                 <Input
                   type="password"
                   className={formInputClassName()}
-                  value={form.password}
+                  value={createForm.password}
                   onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
+                    setCreateForm({ ...createForm, password: e.target.value })
                   }
                   placeholder="••••••••"
                 />
               </FormField>
             </FormDialogSection>
-
             <FormDialogSection title="권한 설정">
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="소속 파트" required>
                   <Select
-                    value={form.part}
+                    value={createForm.part}
                     onValueChange={(v) =>
-                      setForm({ ...form, part: v as UserPart })
+                      setCreateForm({ ...createForm, part: v as UserPart })
                     }
                   >
                     <SelectTrigger className={formInputClassName()}>
@@ -243,9 +346,9 @@ export function AccountManagement() {
                 </FormField>
                 <FormField label="권한" required>
                   <Select
-                    value={form.role}
+                    value={createForm.role}
                     onValueChange={(v) =>
-                      setForm({ ...form, role: v as UserRole })
+                      setCreateForm({ ...createForm, role: v as UserRole })
                     }
                   >
                     <SelectTrigger className={formInputClassName()}>
@@ -264,15 +367,159 @@ export function AccountManagement() {
             </FormDialogSection>
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" className="min-w-24" onClick={() => setDialogOpen(false)}>
+            <Button
+              variant="outline"
+              className="min-w-24"
+              onClick={() => setCreateOpen(false)}
+            >
               취소
             </Button>
             <Button
               className="min-w-28 shadow-sm shadow-primary/20"
               onClick={handleCreate}
-              disabled={!form.name || !form.email || !form.password}
+              disabled={
+                !createForm.name || !createForm.email || !createForm.password
+              }
             >
               계정 생성
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Master 수정 */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <FormDialogHeader
+            icon={Pencil}
+            accent="cyan"
+            title="계정 수정"
+            description={
+              editingUser
+                ? `${editingUser.name} (${editingUser.email})`
+                : undefined
+            }
+          />
+          <DialogBody className="space-y-4">
+            <FormDialogSection title="계정 정보">
+              <FormField label="이름" required>
+                <Input
+                  className={formInputClassName()}
+                  value={editForm.name}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, name: e.target.value })
+                  }
+                />
+              </FormField>
+              <FormField label="이메일" required>
+                <Input
+                  type="email"
+                  className={formInputClassName()}
+                  value={editForm.email}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, email: e.target.value })
+                  }
+                />
+              </FormField>
+              <FormField
+                label="비밀번호"
+                hint="변경할 때만 입력 (비우면 유지)"
+              >
+                <Input
+                  type="password"
+                  className={formInputClassName()}
+                  value={editForm.password}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, password: e.target.value })
+                  }
+                  placeholder="새 비밀번호"
+                />
+              </FormField>
+            </FormDialogSection>
+            <FormDialogSection title="권한 설정">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="소속 파트" required>
+                  <Select
+                    value={editForm.part}
+                    onValueChange={(v) =>
+                      setEditForm({ ...editForm, part: v as UserPart })
+                    }
+                  >
+                    <SelectTrigger className={formInputClassName()}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(PART_LABELS) as UserPart[]).map((part) => (
+                        <SelectItem key={part} value={part}>
+                          {PART_LABELS[part]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="권한" required>
+                  <Select
+                    value={editForm.role}
+                    onValueChange={(v) =>
+                      setEditForm({ ...editForm, role: v as UserRole })
+                    }
+                  >
+                    <SelectTrigger className={formInputClassName()}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {ROLE_LABELS[role]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              </div>
+            </FormDialogSection>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              취소
+            </Button>
+            <Button
+              onClick={handleEditSave}
+              disabled={!editForm.name || !editForm.email}
+            >
+              저장
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Master 삭제 확인 */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="max-w-md">
+          <FormDialogHeader
+            icon={Trash2}
+            accent="sky"
+            title="계정 삭제"
+            description="삭제한 계정은 복구할 수 없습니다."
+          />
+          <DialogBody>
+            <p className="text-sm">
+              <span className="font-semibold">{deletingUser?.name}</span>
+              <span className="text-muted-foreground">
+                {" "}
+                ({deletingUser?.email}) 계정을 삭제할까요?
+              </span>
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              업무·이슈·회의록에 연결된 계정은 삭제되지 않을 수 있습니다.
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              취소
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>
+              삭제
             </Button>
           </DialogFooter>
         </DialogContent>

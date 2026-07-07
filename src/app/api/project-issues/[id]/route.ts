@@ -9,7 +9,9 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
-  const body = await parseBody<Partial<Pick<ProjectIssue, "status" | "content">>>(request);
+  const body = await parseBody<
+    Partial<Pick<ProjectIssue, "status" | "content" | "weekStart">>
+  >(request);
   if (!body) return jsonError("잘못된 요청", 400);
 
   try {
@@ -18,6 +20,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
       data: {
         ...(body.status !== undefined ? { status: body.status } : {}),
         ...(body.content !== undefined ? { content: body.content } : {}),
+        ...(body.weekStart !== undefined ? { weekStart: body.weekStart } : {}),
       },
     });
     return jsonOk(toProjectIssue(row));

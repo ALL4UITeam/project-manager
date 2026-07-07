@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -26,6 +26,78 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+export function IssueStatusEditor({
+  issueId,
+  status,
+  reportWeekStart,
+  compact = false,
+  onUpdate,
+}: {
+  issueId: string;
+  status: IssueStatus;
+  /** 주간 보고에서 완료 처리 시 이번 주로 기록 */
+  reportWeekStart?: string;
+  compact?: boolean;
+  onUpdate: (
+    id: string,
+    data: Partial<Pick<ProjectIssue, "status" | "weekStart">>
+  ) => void;
+}) {
+  const [draft, setDraft] = useState(status);
+  const dirty = draft !== status;
+
+  useEffect(() => {
+    setDraft(status);
+  }, [status, issueId]);
+
+  const handleApply = () => {
+    const data: Partial<Pick<ProjectIssue, "status" | "weekStart">> = {
+      status: draft,
+    };
+    if (draft === "완료" && reportWeekStart) {
+      data.weekStart = reportWeekStart;
+    }
+    onUpdate(issueId, data);
+  };
+
+  const triggerClass = compact
+    ? "h-5 w-[60px] border-0 bg-transparent px-1 text-[10px] shadow-none"
+    : "h-6 w-[72px] border-orange-200 bg-background/80 text-[10px]";
+
+  return (
+    <div className="inline-flex items-center gap-0.5">
+      <Select
+        value={draft}
+        onValueChange={(v) => setDraft(v as IssueStatus)}
+      >
+        <SelectTrigger className={triggerClass}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[]).map((s) => (
+            <SelectItem key={s} value={s} className="text-xs">
+              {ISSUE_STATUS_LABELS[s]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {dirty && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className={cn(
+            compact ? "h-5 px-1.5 text-[9px]" : "h-6 px-2 text-[10px]"
+          )}
+          onClick={handleApply}
+        >
+          변경
+        </Button>
+      )}
+    </div>
+  );
+}
 
 export function IssueRegisterForm({
   defaultProjectId,
@@ -197,27 +269,11 @@ export function IssueList({
                 </Badge>
               )}
               {showStatus && canEdit && (
-                <Select
-                  value={issue.status}
-                  onValueChange={(v) =>
-                    updateProjectIssue(issue.id, {
-                      status: v as IssueStatus,
-                    })
-                  }
-                >
-                  <SelectTrigger className="h-6 w-[72px] border-orange-200 bg-background/80 text-[10px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[]).map(
-                      (s) => (
-                        <SelectItem key={s} value={s} className="text-xs">
-                          {ISSUE_STATUS_LABELS[s]}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
+                <IssueStatusEditor
+                  issueId={issue.id}
+                  status={issue.status}
+                  onUpdate={updateProjectIssue}
+                />
               )}
             </div>
             <p

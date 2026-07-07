@@ -95,7 +95,7 @@ interface AppContextValue {
   addProjectIssue: (issue: Omit<ProjectIssue, "id" | "weekStart" | "userId">) => void;
   updateProjectIssue: (
     id: string,
-    data: Partial<Pick<ProjectIssue, "status" | "content">>
+    data: Partial<Pick<ProjectIssue, "status" | "content" | "weekStart">>
   ) => void;
   getIssuesByProject: (projectId: string) => ProjectIssue[];
   getIssuesByWeek: (reportWeekStart: string) => ProjectIssue[];
@@ -117,6 +117,13 @@ interface AppContextValue {
   setMeetingNoteLinkShare: (id: string, enabled: boolean) => void;
   canEditMeetingNote: () => boolean;
   addUser: (user: Omit<User, "id">) => void;
+  updateUser: (
+    id: string,
+    data: Partial<Pick<User, "name" | "email" | "role" | "part">> & {
+      password?: string;
+    }
+  ) => void;
+  deleteUser: (id: string) => void;
   updateUserRole: (id: string, role: UserRole) => void;
   updateUserPart: (id: string, part: UserPart) => void;
   getUserById: (id: string) => User | undefined;
@@ -132,6 +139,7 @@ interface AppContextValue {
   canEditTask: (userId: string) => boolean;
   canAddIssue: () => boolean;
   canManageAccounts: () => boolean;
+  canMasterManageUsers: () => boolean;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -478,7 +486,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const updateProjectIssue = useCallback(
-    (id: string, data: Partial<Pick<ProjectIssue, "status" | "content">>) => {
+    (
+      id: string,
+      data: Partial<Pick<ProjectIssue, "status" | "content" | "weekStart">>
+    ) => {
       setProjectIssues((prev) =>
         prev.map((issue) => (issue.id === id ? { ...issue, ...data } : issue))
       );
@@ -642,6 +653,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).then((created) => setUsers((prev) => [...prev, created]));
   }, []);
 
+  const applyUserUpdate = useCallback((id: string, updated: User) => {
+    setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+    setCurrentUser((prev) => (prev?.id === id ? updated : prev));
+  }, []);
+
+  const updateUser = useCallback(
+    (
+      id: string,
+      data: Partial<Pick<User, "name" | "email" | "role" | "part">> & {
+        password?: string;
+      }
+    ) => {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, ...data, password: "" } : u))
+      );
+      void apiFetch<User>(`/api/users/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      })
+        .then((updated) => applyUserUpdate(id, updated))
+        .catch(() => {
+          void apiFetch<AppDataPayload>("/api/data").then(hydrateData);
+        });
+    },
+    [applyUserUpdate, hydrateData]
+  );
+
+  const deleteUser = useCallback(
+    (id: string) => {
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      if (currentUser?.id === id) {
+        setCurrentUser(null);
+        setStoredUserId(null);
+      }
+      void apiFetch(`/api/users/${id}`, { method: "DELETE" }).catch(() => {
+        void apiFetch<AppDataPayload>("/api/data").then(hydrateData);
+      });
+    },
+    [currentUser, hydrateData]
+  );
+
   const updateUserRole = useCallback((id: string, role: UserRole) => {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)));
     setCurrentUser((prev) => (prev?.id === id ? { ...prev, role } : prev));
@@ -744,6 +796,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return ["MASTER", "LEADER"].includes(currentUser.role);
   }, [currentUser]);
 
+  const canMasterManageUsers = useCallback(() => {
+    if (!currentUser) return false;
+    return currentUser.role === "MASTER";
+  }, [currentUser]);
+
   const canAddIssue = useCallback(() => {
     if (!currentUser) return false;
     return currentUser.role !== "EXTERNAL";
@@ -809,6 +866,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setMeetingNoteLinkShare,
       canEditMeetingNote,
       addUser,
+      updateUser,
+      deleteUser,
       updateUserRole,
       updateUserPart,
       getUserById,
@@ -824,6 +883,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       canEditTask,
       canAddIssue,
       canManageAccounts,
+      canMasterManageUsers,
     }),
     [
       currentUser,
@@ -882,6 +942,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setMeetingNoteLinkShare,
       canEditMeetingNote,
       addUser,
+      updateUser,
+      deleteUser,
       updateUserRole,
       updateUserPart,
       getUserById,
@@ -897,6 +959,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       canEditTask,
       canAddIssue,
       canManageAccounts,
+      canMasterManageUsers,
     ]
   );
 
