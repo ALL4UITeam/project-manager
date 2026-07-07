@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  meetingsListPath,
+  meetingsViewPath,
+  meetingsWritePath,
+} from "@/lib/app-routes";
 import {
   FileText,
   ChevronRight,
@@ -14,11 +20,7 @@ import { ProjectStatusBadge } from "@/components/shared/project-status-badge";
 import { YearFilterSelect } from "@/components/shared/year-filter-select";
 import { ProjectSearchInput } from "@/components/shared/project-search-input";
 import { PageHeader } from "@/components/shared/page-header";
-import { MeetingNoteEditorDialog } from "@/components/meetings/meeting-note-editor-dialog";
-import {
-  MeetingNoteDetail,
-  MeetingNoteListItem,
-} from "@/components/meetings/meeting-note-detail";
+import { MeetingNoteListItem } from "@/components/meetings/meeting-note-detail";
 import {
   getAvailableYears,
   filterProjectsByYear,
@@ -62,48 +64,20 @@ function ProjectNoteList({
   selectedYear: number;
   onBack: () => void;
 }) {
+  const router = useRouter();
   const { canEditMeetingNote } = useApp();
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState<MeetingNote | undefined>();
 
   const sorted = [...notes].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  const selectedNote = selectedNoteId
-    ? notes.find((n) => n.id === selectedNoteId)
-    : null;
-
   const openCreate = () => {
-    setEditingNote(undefined);
-    setEditorOpen(true);
+    router.push(meetingsWritePath(project.id));
   };
 
-  const openEdit = (note: MeetingNote) => {
-    setEditingNote(note);
-    setEditorOpen(true);
+  const openView = (note: MeetingNote) => {
+    router.push(meetingsViewPath(note.id, project.id));
   };
-
-  if (selectedNote) {
-    return (
-      <>
-        <MeetingNoteDetail
-          note={selectedNote}
-          project={project}
-          onBack={() => setSelectedNoteId(null)}
-          onEdit={() => openEdit(selectedNote)}
-        />
-        <MeetingNoteEditorDialog
-          open={editorOpen}
-          onOpenChange={setEditorOpen}
-          project={project}
-          note={editingNote}
-          onSaved={() => setEditorOpen(false)}
-        />
-      </>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -158,28 +132,34 @@ function ProjectNoteList({
                 <MeetingNoteListItem
                   key={note.id}
                   note={note}
-                  onClick={() => setSelectedNoteId(note.id)}
+                  onClick={() => openView(note)}
                 />
               ))}
             </div>
           )}
         </CardContent>
       </Card>
-
-      <MeetingNoteEditorDialog
-        open={editorOpen}
-        onOpenChange={setEditorOpen}
-        project={project}
-        note={editingNote}
-        onSaved={(saved) => {
-          if (!editingNote) setSelectedNoteId(saved.id);
-        }}
-      />
     </div>
   );
 }
 
 export function MeetingNotesView() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      }
+    >
+      <MeetingNotesViewContent />
+    </Suspense>
+  );
+}
+
+function MeetingNotesViewContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { meetingNotes, projects } = useApp();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
@@ -236,7 +216,34 @@ export function MeetingNotesView() {
     setSelectedYear(year);
     setSelectedProjectId(null);
     setSearchQuery("");
+    router.replace(meetingsListPath({ year }));
   };
+
+  const openProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    router.replace(meetingsListPath({ projectId, year: selectedYear }));
+  };
+
+  const closeProject = () => {
+    setSelectedProjectId(null);
+    router.replace(meetingsListPath({ year: selectedYear }));
+  };
+
+  useEffect(() => {
+    const projectId = searchParams.get("projectId");
+    const yearParam = searchParams.get("year");
+    if (yearParam) {
+      const year = parseInt(yearParam, 10);
+      if (!Number.isNaN(year) && availableYears.includes(year)) {
+        setSelectedYear(year);
+      }
+    }
+    if (projectId && projects.some((p) => p.id === projectId)) {
+      setSelectedProjectId(projectId);
+    } else if (!projectId) {
+      setSelectedProjectId(null);
+    }
+  }, [searchParams, projects, availableYears]);
 
   return (
     <div className="page-stack">
@@ -259,7 +266,7 @@ export function MeetingNotesView() {
           project={selectedProject}
           notes={selectedNotes}
           selectedYear={selectedYear}
-          onBack={() => setSelectedProjectId(null)}
+          onBack={closeProject}
         />
       ) : (
         <Card className="border-0 shadow-sm">
@@ -304,7 +311,7 @@ export function MeetingNotesView() {
                         <TableRow
                           key={project.id}
                           className="cursor-pointer transition-colors hover:bg-primary/5"
-                          onClick={() => setSelectedProjectId(project.id)}
+                          onClick={() => openProject(project.id)}
                         >
                           <TableCell className="font-mono text-xs font-semibold text-primary">
                             {project.code}

@@ -11,7 +11,8 @@ import {
 } from "@/components/shared/form-dialog";
 import { useApp } from "@/context/app-context";
 import type { Project, ProjectStatus } from "@/types";
-import { PROJECT_STATUS_LABELS } from "@/types";
+import { PROJECT_STATUS_LABELS, ALLOCATED_MD_PARTS, DEFAULT_ALLOCATED_MD } from "@/types";
+import { sumAllocatedMd } from "@/lib/project-md-utils";
 import {
   ProjectStatusBadge,
   StatusLegend,
@@ -29,6 +30,7 @@ import { ProjectSearchInput } from "@/components/shared/project-search-input";
 import { IssueSearchInput } from "@/components/shared/issue-search-input";
 import { IssueList } from "@/components/issues/issue-components";
 import { filterIssuesBySearch } from "@/lib/issue-utils";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +73,7 @@ const emptyForm: ProjectForm = {
   status: "진행",
   assigneePrimary: "",
   assigneeSecondary: "",
+  allocatedMd: { ...DEFAULT_ALLOCATED_MD },
 };
 
 function ProjectFormDialog({
@@ -210,6 +213,35 @@ function ProjectFormDialog({
               </FormField>
             </div>
           </FormDialogSection>
+
+          <FormDialogSection
+            title="수주 M/D"
+            description="파트별 계약(배정) 공수 · 기본값 0"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              {ALLOCATED_MD_PARTS.map((part) => (
+                <FormField key={part} label={part} required>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    className={formInputClassName("font-numeric")}
+                    value={form.allocatedMd[part]}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      setForm({
+                        ...form,
+                        allocatedMd: {
+                          ...form.allocatedMd,
+                          [part]: Number.isFinite(v) ? Math.max(0, v) : 0,
+                        },
+                      });
+                    }}
+                  />
+                </FormField>
+              ))}
+            </div>
+          </FormDialogSection>
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" className="min-w-24" onClick={() => onOpenChange(false)}>
@@ -301,10 +333,16 @@ export function ProjectStatusBoard() {
     projectIssues.filter((i) => i.projectId === projectId).length;
 
   const getProjectStats = (projectId: string) => {
-    const tasks = weeklyTasks.filter((t) => t.projectId === projectId);
+    const project = projects.find((p) => p.id === projectId);
+    const tasks = weeklyTasks.filter(
+      (t) => t.projectId === projectId && t.taskType === "THIS_WEEK"
+    );
     const md = tasks.reduce((s, t) => s + t.md, 0);
     const memberCount = new Set(tasks.map((t) => t.userId)).size;
-    return { md, memberCount, taskCount: tasks.length };
+    const allocatedTotal = project
+      ? sumAllocatedMd(project.allocatedMd)
+      : 0;
+    return { md, memberCount, taskCount: tasks.length, allocatedTotal };
   };
 
   if (selectedProject) {
@@ -397,7 +435,9 @@ export function ProjectStatusBoard() {
                     <TableHead className="w-28 font-semibold">담당</TableHead>
                     <TableHead className="w-28 font-semibold">기간</TableHead>
                     <TableHead className="w-20 font-semibold">상태</TableHead>
-                    <TableHead className="w-20 font-semibold">투입</TableHead>
+                    <TableHead className="w-28 font-semibold">
+                      투입 / 수주
+                    </TableHead>
                     <TableHead className="w-16 font-semibold">이슈</TableHead>
                     {canEditProject() && (
                       <TableHead className="w-12 font-semibold" />
@@ -439,8 +479,16 @@ export function ProjectStatusBoard() {
                         </TableCell>
                         <TableCell>
                           <div className="text-xs">
-                            <span className="font-mono font-semibold text-primary">
-                              {stats.md.toFixed(1)}M
+                            <span
+                              className={cn(
+                                "font-mono font-semibold",
+                                stats.allocatedTotal > 0 &&
+                                  stats.md > stats.allocatedTotal
+                                  ? "text-destructive"
+                                  : "text-primary"
+                              )}
+                            >
+                              {stats.md.toFixed(1)} / {stats.allocatedTotal.toFixed(1)}M
                             </span>
                             <span className="text-muted-foreground">
                               {" "}

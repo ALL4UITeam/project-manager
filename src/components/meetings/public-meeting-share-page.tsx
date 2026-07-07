@@ -1,15 +1,53 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { FileX2 } from "lucide-react";
-import { useApp } from "@/context/app-context";
-import { SharedMeetingNoteView } from "@/components/meetings/meeting-note-detail";
+import { apiFetch } from "@/lib/api-client";
+import { SharedMeetingNoteView } from "@/components/meetings/meeting-note-view-page";
+import type { MeetingNote, Project } from "@/types";
 
 export function PublicMeetingSharePage({ token }: { token: string }) {
-  const { getMeetingNoteByShareToken, getProjectById } = useApp();
-  const note = getMeetingNoteByShareToken(token);
-  const project = note ? getProjectById(note.projectId) : undefined;
+  const [note, setNote] = useState<MeetingNote | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
-  if (!note) {
+  useEffect(() => {
+    if (!token) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await apiFetch<{
+          note: MeetingNote;
+          project: Project | null;
+        }>(`/api/share/meetings/${encodeURIComponent(token)}`);
+        if (cancelled) return;
+        setNote(data.note);
+        setProject(data.project);
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (notFound || !note) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center px-4">
         <FileX2 className="h-12 w-12 text-muted-foreground" />
@@ -22,5 +60,5 @@ export function PublicMeetingSharePage({ token }: { token: string }) {
     );
   }
 
-  return <SharedMeetingNoteView note={note} project={project} />;
+  return <SharedMeetingNoteView note={note} project={project ?? undefined} />;
 }

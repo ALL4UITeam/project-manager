@@ -84,6 +84,7 @@ export function ProjectPartLinks({
     getResourceLinksByProject,
     deleteProjectResourceLink,
     canEditPartLinks,
+    getUserById,
   } = useApp();
   const [adding, setAdding] = useState(false);
 
@@ -112,32 +113,42 @@ export function ProjectPartLinks({
 
       {links.length > 0 ? (
         <ul className="space-y-1.5">
-          {links.map((link) => (
+          {links.map((link) => {
+            const author = getUserById(link.userId);
+            return (
             <li
               key={link.id}
-              className="group flex items-center gap-2 rounded-md border border-border/50 bg-background/80 px-2.5 py-2"
+              className="group rounded-md border border-border/50 bg-background/80 px-2.5 py-2"
             >
-              <a
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-primary hover:underline"
-              >
-                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                <span className="truncate">{link.label}</span>
-              </a>
-              {canEdit && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                  onClick={() => deleteProjectResourceLink(link.id)}
+              <div className="flex items-center gap-2">
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-primary hover:underline"
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                  <span className="truncate">{link.label}</span>
+                </a>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    onClick={() => deleteProjectResourceLink(link.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                )}
+              </div>
+              {author && (
+                <p className="mt-1 pl-5 text-[10px] text-muted-foreground">
+                  등록 · {author.name}
+                </p>
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       ) : (
         !adding && (

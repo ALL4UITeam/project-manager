@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FileX2, Globe } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-import { useApp } from "@/context/app-context";
+import { apiFetch } from "@/lib/api-client";
 import {
   buildScheduleWeekColumnsForRows,
   rowOverlapsYear,
@@ -17,11 +17,41 @@ import {
   getDefaultSelectedYear,
 } from "@/lib/project-utils";
 import { Badge } from "@/components/ui/badge";
+import type { Project, ScheduleRow } from "@/types";
 
 /** 공유 URL 전용 — 사이드바·편집 UI 없이 간트 본문만 */
 export function PublicScheduleSharePage({ token }: { token: string }) {
-  const { getProjectByScheduleShareToken, getScheduleRowsByProject } = useApp();
-  const project = getProjectByScheduleShareToken(token);
+  const [project, setProject] = useState<Project | null>(null);
+  const [allRows, setAllRows] = useState<ScheduleRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    if (!token) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await apiFetch<{
+          project: Project;
+          scheduleRows: ScheduleRow[];
+        }>(`/api/share/schedule/${encodeURIComponent(token)}`);
+        if (cancelled) return;
+        setProject(data.project);
+        setAllRows(data.scheduleRows);
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const allYears = useMemo(
     () => (project ? getAvailableYears([project]) : []),
@@ -29,7 +59,7 @@ export function PublicScheduleSharePage({ token }: { token: string }) {
   );
 
   const [selectedYear, setSelectedYear] = useState(() =>
-    getDefaultSelectedYear(allYears)
+    getDefaultSelectedYear(allYears.length ? allYears : [new Date().getFullYear()])
   );
 
   useEffect(() => {
@@ -40,17 +70,23 @@ export function PublicScheduleSharePage({ token }: { token: string }) {
 
   const rows = useMemo(() => {
     if (!project) return [];
-    return getScheduleRowsByProject(project.id).filter((r) =>
-      rowOverlapsYear(r, selectedYear)
-    );
-  }, [project, getScheduleRowsByProject, selectedYear]);
+    return allRows.filter((r) => rowOverlapsYear(r, selectedYear));
+  }, [project, allRows, selectedYear]);
 
   const columns = useMemo(
     () => buildScheduleWeekColumnsForRows(rows, selectedYear),
     [rows, selectedYear]
   );
 
-  if (!project) {
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (notFound || !project) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
         <FileX2 className="h-12 w-12 text-muted-foreground" />

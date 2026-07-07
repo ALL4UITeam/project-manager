@@ -195,13 +195,27 @@ export function ProjectDetailView({
       </div>
 
       <CollapsibleSection
+        title="비고 이력"
+        count={projectRemarks.length}
+        description={
+          latestRemarkPreview
+            ? `최근: ${latestRemarkPreview}${projectRemarks[0]!.content.length > 60 ? "…" : ""} · 주간 업무 보고에서 등록`
+            : "일정·참고사항 (이슈와 별도) · 주간 업무 보고에서 등록"
+        }
+        defaultOpen={false}
+        contentClassName="max-h-80 overflow-y-auto"
+      >
+        <RemarkList remarks={projectRemarks} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
         className={projectIssues.length > 0 ? "border-orange-200" : ""}
         title="이슈 이력"
         count={projectIssues.length}
         description={
           latestIssuePreview
-            ? `최근: ${latestIssuePreview}${projectIssues[0]!.content.length > 60 ? "…" : ""} · 주간 업무 보고에서 등록`
-            : "주간 업무 보고 → 이번주 이슈사항에서 등록"
+            ? `최근: ${latestIssuePreview}${projectIssues[0]!.content.length > 60 ? "…" : ""} · 완료 포함 전체 이력`
+            : "주간 업무 보고 → 이번주 이슈사항에서 등록 · 완료 건 포함"
         }
         defaultOpen={false}
         icon={
@@ -232,26 +246,13 @@ export function ProjectDetailView({
         )}
         <IssueList
           issues={filteredProjectIssues}
+          editableStatus
           emptyMessage={
             issueSearchQuery.trim()
               ? `「${issueSearchQuery}」 검색 결과가 없습니다`
               : "등록된 이슈가 없습니다"
           }
         />
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        title="비고 이력"
-        count={projectRemarks.length}
-        description={
-          latestRemarkPreview
-            ? `최근: ${latestRemarkPreview}${projectRemarks[0]!.content.length > 60 ? "…" : ""} · 주간 업무 보고에서 등록`
-            : "일정·참고사항 (이슈와 별도) · 주간 업무 보고에서 등록"
-        }
-        defaultOpen={false}
-        contentClassName="max-h-80 overflow-y-auto"
-      >
-        <RemarkList remarks={projectRemarks} />
       </CollapsibleSection>
 
       <div className="space-y-4">

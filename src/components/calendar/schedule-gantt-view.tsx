@@ -31,14 +31,19 @@ import { ScheduleGanttProjectPanel } from "@/components/calendar/schedule-gantt-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 
 const TEMPLATE_IDS = Object.keys(SCHEDULE_TEMPLATE_LABELS) as ScheduleTemplateId[];
 
@@ -218,37 +223,36 @@ export function ScheduleGanttView() {
           </div>
 
           {filteredProjects.length > 0 && (
-            <Tabs
-              value={selectedProjectId}
-              onValueChange={setSelectedProjectId}
-              className="gap-0"
-            >
-              <div className="overflow-x-auto">
-                <TabsList className="inline-flex h-auto w-max max-w-full gap-1 bg-muted/50 p-1">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground">
+                프로젝트
+              </p>
+              <Select
+                value={selectedProjectId}
+                onValueChange={setSelectedProjectId}
+              >
+                <SelectTrigger className="h-9 w-full max-w-md text-xs">
+                  <SelectValue placeholder="프로젝트 선택" />
+                </SelectTrigger>
+                <SelectContent>
                   {filteredProjects.map((p) => {
                     const count = getScheduleRowsByProject(p.id).filter((r) =>
                       rowOverlapsYear(r, selectedYear)
                     ).length;
                     return (
-                      <TabsTrigger
-                        key={p.id}
-                        value={p.id}
-                        className={cn(
-                          "h-8 shrink-0 px-3 text-xs data-[state=active]:shadow-sm",
-                          "flex flex-col items-start gap-0 py-1 leading-none"
-                        )}
-                        title={p.name}
-                      >
+                      <SelectItem key={p.id} value={p.id}>
                         <span className="font-numeric font-bold">{p.code}</span>
-                        <span className="mt-0.5 text-[9px] font-normal text-muted-foreground">
-                          WBS {count}
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · {p.name}
+                          {count > 0 ? ` (WBS ${count})` : ""}
                         </span>
-                      </TabsTrigger>
+                      </SelectItem>
                     );
                   })}
-                </TabsList>
-              </div>
-            </Tabs>
+                </SelectContent>
+              </Select>
+            </div>
           )}
         </CardContent>
       </Card>

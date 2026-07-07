@@ -14,9 +14,16 @@ import {
   mockScheduleRows,
   mockScheduleNotes,
 } from "@/data/mock-schedule";
+import { normalizeProjectMdFields } from "@/lib/project-md-utils";
+import { normalizeMeetingNote } from "@/lib/meeting-note-utils";
+import {
+  alignProjectIssuesToCurrentWeek,
+  alignProjectRemarksToCurrentWeek,
+  alignWeeklyTasksToCurrentWeek,
+} from "@/lib/demo-week-align";
 
 const STORAGE_KEY = "a4-app-snapshot";
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 6;
 
 export interface AppSnapshot {
   version: number;
@@ -52,20 +59,39 @@ function hasCoreArrays(snapshot: Partial<AppSnapshot>): boolean {
 function normalizeSnapshot(raw: unknown): AppSnapshot | null {
   if (!raw || typeof raw !== "object") return null;
   const snapshot = raw as Partial<AppSnapshot> & { version?: number };
-  if (snapshot.version !== 1 && snapshot.version !== 2) return null;
+  if (snapshot.version !== 1 && snapshot.version !== 2 && snapshot.version !== 3 && snapshot.version !== 4 && snapshot.version !== 5 && snapshot.version !== 6)
+    return null;
   if (!hasCoreArrays(snapshot)) return null;
+
+  const projectIssues = (snapshot.projectIssues ?? []).map((issue) => ({
+    ...issue,
+    status: issue.status ?? "진행",
+  }));
+
+  const projectResourceLinks = (snapshot.projectResourceLinks ?? []).map(
+    (link) => ({
+      ...link,
+      userId: link.userId ?? "u-kim",
+    })
+  );
+
+  const meetingNotes = (snapshot.meetingNotes ?? []).map((note) =>
+    normalizeMeetingNote(note as MeetingNote, (id) =>
+      snapshot.users?.find((u) => u.id === id)
+    )
+  );
 
   return {
     version: STORAGE_VERSION,
     currentUserId: snapshot.currentUserId ?? null,
     users: snapshot.users!,
-    projects: snapshot.projects!,
-    weeklyTasks: snapshot.weeklyTasks!,
+    projects: snapshot.projects!.map((p) => normalizeProjectMdFields(p)),
+    weeklyTasks: alignWeeklyTasksToCurrentWeek(snapshot.weeklyTasks!),
     milestones: snapshot.milestones!,
-    meetingNotes: snapshot.meetingNotes!,
-    projectIssues: snapshot.projectIssues!,
-    projectRemarks: snapshot.projectRemarks!,
-    projectResourceLinks: snapshot.projectResourceLinks!,
+    meetingNotes,
+    projectIssues: alignProjectIssuesToCurrentWeek(projectIssues),
+    projectRemarks: alignProjectRemarksToCurrentWeek(snapshot.projectRemarks!),
+    projectResourceLinks,
     scheduleRows: Array.isArray(snapshot.scheduleRows)
       ? snapshot.scheduleRows
       : mockScheduleRows,

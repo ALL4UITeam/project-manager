@@ -1,23 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Presentation, Trash2, ClipboardList, PenLine } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Presentation, Trash2, ClipboardList, Save } from "lucide-react";
+import { format, addWeeks, subWeeks } from "date-fns";
 import { PageHeader } from "@/components/shared/page-header";
-import {
-  FormDialogSection,
-  FormField,
-  formInputClassName,
-} from "@/components/shared/form-dialog";
-import { addWeeks, subWeeks } from "date-fns";
 import { useApp } from "@/context/app-context";
 import {
   WORK_PARTS,
   TASK_TYPE_LABELS,
   TASK_STATUS_LABELS,
+  REPORT_TASK_VIEW_LABELS,
+  REPORT_TASK_VIEWS,
   USER_PART_TO_WORK,
   PART_LABELS,
   type TaskType,
   type TaskStatus,
+  type ReportTaskView,
   type WeeklyTask,
   type Project,
 } from "@/types";
@@ -27,6 +25,10 @@ import { WeeklyProjectIssueBoard } from "@/components/reports/weekly-project-iss
 import {
   getAnchorWeekForYear,
   isWeekInYear,
+  filterTasksByReportView,
+  formatWeekRange,
+  getWeekStartForReportView,
+  getWeekDates,
 } from "@/lib/week-utils";
 import {
   getAvailableYears,
@@ -37,10 +39,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -303,12 +304,82 @@ function TaskTable({
   );
 }
 
-function TaskEntryForm({
+function ReportTaskTabsList({
+  showCounts,
+  counts,
+}: {
+  showCounts?: boolean;
+  counts?: Partial<Record<ReportTaskView, number>>;
+}) {
+  return (
+    <TabsList className="mx-auto grid w-full max-w-xl grid-cols-3">
+      {REPORT_TASK_VIEWS.map((view) => (
+        <TabsTrigger key={view} value={view} className="px-3">
+          {REPORT_TASK_VIEW_LABELS[view]}
+          {showCounts && counts?.[view] !== undefined
+            ? ` (${counts[view]})`
+            : ""}
+        </TabsTrigger>
+      ))}
+    </TabsList>
+  );
+}
+
+function getTaskYears(tasks: WeeklyTask[]): number[] {
+  const years = new Set<number>();
+  for (const t of tasks) {
+    years.add(parseInt(t.startDate.slice(0, 4), 10));
+  }
+  return [...years].sort((a, b) => b - a);
+}
+
+type DraftRow = {
+  key: string;
+  projectId: string;
+  startDate: string;
+  endDate: string;
+  content: string;
+  md: number;
+  status: TaskStatus;
+};
+
+function getDefaultDatesForView(
+  reportWeekStart: Date,
+  view: ReportTaskView
+): { startDate: string; endDate: string } {
+  const week = getWeekStartForReportView(reportWeekStart, view);
+  const dates = getWeekDates(week);
+  return {
+    startDate: format(dates[0], "yyyy-MM-dd"),
+    endDate: format(dates[4], "yyyy-MM-dd"),
+  };
+}
+
+function createDraftRow(
+  startDate: string,
+  endDate: string
+): DraftRow {
+  return {
+    key: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    projectId: "",
+    startDate,
+    endDate,
+    content: "",
+    md: 0.5,
+    status: "진행",
+  };
+}
+
+function WeeklyTaskSection({
   yearProjects,
   yearTasks,
+  reportWeekStart,
+  variant,
 }: {
   yearProjects: Project[];
   yearTasks: WeeklyTask[];
+  reportWeekStart: Date;
+  variant: "member" | "admin";
 }) {
   const {
     currentUser,
@@ -317,224 +388,323 @@ function TaskEntryForm({
     canEditTask,
   } = useApp();
 
-  const [taskType, setTaskType] = useState<TaskType>("THIS_WEEK");
-  const [form, setForm] = useState({
-    projectId: "",
-    startDate: "2026-06-16",
-    endDate: "2026-06-20",
-    status: "진행" as TaskStatus,
-    content: "",
-    md: 0.5,
-  });
+  const [taskView, setTaskView] = useState<ReportTaskView>("THIS_WEEK");
+  const defaultDates = getDefaultDatesForView(reportWeekStart, "THIS_WEEK");
+  const [drafts, setDrafts] = useState<DraftRow[]>(() => [
+    createDraftRow(defaultDates.startDate, defaultDates.endDate),
+  ]);
+  const [savedFlash, setSavedFlash] = useState(false);
 
-  if (!currentUser) return null;
+  useEffect(() => {
+    const dates = getDefaultDatesForView(reportWeekStart, taskView);
+    setDrafts([createDraftRow(dates.startDate, dates.endDate)]);
+    setSavedFlash(false);
+  }, [taskView, reportWeekStart]);
 
-  const workPart = USER_PART_TO_WORK[currentUser.part];
-  if (!workPart) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center text-sm text-muted-foreground">
-          PM/관리자 계정은 팀원 계정으로 전환하여 업무를 작성하세요.
-        </CardContent>
-      </Card>
-    );
+  const workPart =
+    variant === "member" && currentUser
+      ? USER_PART_TO_WORK[currentUser.part]
+      : undefined;
+
+  if (variant === "member") {
+    if (!currentUser) return null;
+    if (!workPart) {
+      return (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            PM/관리자 계정은 상단 Demo에서 MEMBER로 전환하거나, 김찬기 등 팀원
+            계정으로 로그인하세요.
+          </CardContent>
+        </Card>
+      );
+    }
   }
 
-  const myTasks = yearTasks.filter(
-    (t) => t.userId === currentUser.id && t.taskType === taskType
+  const canWrite =
+    variant === "member" &&
+    (taskView === "THIS_WEEK" || taskView === "NEXT_WEEK");
+  const taskTypeForSave: TaskType =
+    taskView === "NEXT_WEEK" ? "NEXT_WEEK" : "THIS_WEEK";
+
+  const validDrafts = drafts.filter(
+    (r) => r.projectId && r.content.trim() && r.startDate && r.endDate
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.projectId || !form.content) return;
-    addWeeklyTask({
-      projectId: form.projectId,
-      userId: currentUser.id,
-      part: workPart,
-      taskType,
-      startDate: form.startDate,
-      endDate: form.endDate,
-      status: form.status,
-      content: form.content,
-      md: form.md,
-    });
-    setForm((prev) => ({ ...prev, content: "", md: 0.5 }));
+  const updateDraft = (key: string, patch: Partial<DraftRow>) => {
+    setDrafts((prev) =>
+      prev.map((r) => (r.key === key ? { ...r, ...patch } : r))
+    );
   };
 
+  const addDraftRow = () => {
+    const dates = getDefaultDatesForView(reportWeekStart, taskView);
+    setDrafts((prev) => [
+      ...prev,
+      createDraftRow(dates.startDate, dates.endDate),
+    ]);
+  };
+
+  const removeDraftRow = (key: string) => {
+    setDrafts((prev) =>
+      prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)
+    );
+  };
+
+  const handleSave = () => {
+    if (!canWrite || !currentUser || !workPart || validDrafts.length === 0)
+      return;
+    for (const row of validDrafts) {
+      addWeeklyTask({
+        projectId: row.projectId,
+        userId: currentUser.id,
+        part: workPart,
+        taskType: taskTypeForSave,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        status: row.status,
+        content: row.content.trim(),
+        md: row.md,
+      });
+    }
+    const dates = getDefaultDatesForView(reportWeekStart, taskView);
+    setDrafts([createDraftRow(dates.startDate, dates.endDate)]);
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 2000);
+  };
+
+  const tabCounts = Object.fromEntries(
+    REPORT_TASK_VIEWS.map((view) => [
+      view,
+      filterTasksByReportView(yearTasks, reportWeekStart, view).length,
+    ])
+  );
+
   return (
-    <div className="space-y-4">
-      <Tabs value={taskType} onValueChange={(v) => setTaskType(v as TaskType)}>
-        <TabsList>
-          <TabsTrigger value="THIS_WEEK">이번주 실적</TabsTrigger>
-          <TabsTrigger value="NEXT_WEEK">다음주 계획</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      <Card className="glass-card overflow-hidden border-0">
-        <CardHeader className="border-b border-border/60 bg-gradient-to-br from-violet-500/8 via-transparent to-primary/5 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-600 ring-1 ring-violet-500/20">
-              <PenLine className="h-4 w-4" strokeWidth={2.25} />
-            </div>
-            <div>
-              <CardTitle className="font-display text-base">
-                {TASK_TYPE_LABELS[taskType]} 작성
-              </CardTitle>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                파트 <Badge variant="secondary" className="ml-1">{workPart}</Badge>
-              </p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <FormDialogSection title="업무 정보">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <FormField label="프로젝트" required className="lg:col-span-2">
-                  <Select
-                    value={form.projectId}
-                    onValueChange={(v) => setForm({ ...form, projectId: v })}
-                  >
-                    <SelectTrigger className={formInputClassName()}>
-                      <SelectValue placeholder="프로젝트 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {yearProjects.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.code} · {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField label="시작일">
-                  <Input
-                    type="date"
-                    className={formInputClassName()}
-                    value={form.startDate}
-                    onChange={(e) =>
-                      setForm({ ...form, startDate: e.target.value })
-                    }
-                  />
-                </FormField>
-                <FormField label="종료일">
-                  <Input
-                    type="date"
-                    className={formInputClassName()}
-                    value={form.endDate}
-                    onChange={(e) =>
-                      setForm({ ...form, endDate: e.target.value })
-                    }
-                  />
-                </FormField>
-                <FormField label="구분">
-                  <Select
-                    value={form.status}
-                    onValueChange={(v) =>
-                      setForm({ ...form, status: v as TaskStatus })
-                    }
-                  >
-                    <SelectTrigger className={formInputClassName()}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(TASK_STATUS_LABELS) as TaskStatus[]).map(
-                        (s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        )
-                      )}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
-            </FormDialogSection>
-            <div className="grid gap-4 md:grid-cols-[1fr_120px]">
-              <FormField label="업무내용" required>
-                <Textarea
-                  value={form.content}
-                  onChange={(e) =>
-                    setForm({ ...form, content: e.target.value })
-                  }
-                  placeholder="업무 내용을 입력하세요"
-                  rows={3}
-                  className="border-border/70 bg-background/90 shadow-sm"
-                />
-              </FormField>
-              <FormField label="M/D">
-                <Input
-                  type="number"
-                  step="0.25"
-                  min="0"
-                  className={formInputClassName("font-numeric")}
-                  value={form.md}
-                  onChange={(e) =>
-                    setForm({ ...form, md: parseFloat(e.target.value) || 0 })
-                  }
-                />
-              </FormField>
-            </div>
-            <Button
-              type="submit"
-              disabled={!form.projectId || !form.content}
-              className="shadow-sm shadow-primary/20"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              업무 추가
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            내 {TASK_TYPE_LABELS[taskType]} ({myTasks.length}건)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <TaskTable
-            tasks={myTasks}
-            editable={canEditTask(currentUser.id)}
-            onDelete={deleteWeeklyTask}
+    <Card className="glass-card border-0">
+      <Tabs
+        value={taskView}
+        onValueChange={(v) => setTaskView(v as ReportTaskView)}
+      >
+        <CardHeader className="border-b border-border/60 pb-3">
+          <ReportTaskTabsList
+            showCounts={variant === "admin"}
+            counts={tabCounts}
           />
-        </CardContent>
-      </Card>
-    </div>
+        </CardHeader>
+
+        {REPORT_TASK_VIEWS.map((view) => {
+          const viewWeek = getWeekStartForReportView(reportWeekStart, view);
+          const viewTasks = filterTasksByReportView(
+            yearTasks,
+            reportWeekStart,
+            view
+          );
+          const displayTasks =
+            variant === "member" && currentUser
+              ? viewTasks.filter((t) => t.userId === currentUser.id)
+              : viewTasks;
+          const writable =
+            variant === "member" &&
+            (view === "THIS_WEEK" || view === "NEXT_WEEK");
+
+          return (
+            <TabsContent key={view} value={view} className="m-0">
+              <div className="border-b border-border/40 bg-muted/15 px-4 py-2 text-xs text-muted-foreground">
+                {formatWeekRange(viewWeek)} · {displayTasks.length}건
+                {writable && (
+                  <span className="ml-2 text-primary">
+                    → {REPORT_TASK_VIEW_LABELS[view]} 저장 시{" "}
+                    {view === "NEXT_WEEK" ? "다음주 계획" : "이번주 실적"}에
+                    등록
+                  </span>
+                )}
+              </div>
+
+              {writable && (
+                <div className="space-y-2 border-b border-border/40 px-4 py-3">
+                  {drafts.map((row) => (
+                    <div
+                      key={row.key}
+                      className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-background/80 p-2"
+                    >
+                      <Select
+                        value={row.projectId}
+                        onValueChange={(v) =>
+                          updateDraft(row.key, { projectId: v })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-[120px] shrink-0 text-xs">
+                          <SelectValue placeholder="프로젝트" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {yearProjects.map((p) => (
+                            <SelectItem
+                              key={p.id}
+                              value={p.id}
+                              className="text-xs"
+                            >
+                              {p.code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="date"
+                        value={row.startDate}
+                        onChange={(e) =>
+                          updateDraft(row.key, { startDate: e.target.value })
+                        }
+                        className="h-8 w-[128px] shrink-0 text-xs"
+                        title="시작일"
+                      />
+                      <Input
+                        type="date"
+                        value={row.endDate}
+                        onChange={(e) =>
+                          updateDraft(row.key, { endDate: e.target.value })
+                        }
+                        className="h-8 w-[128px] shrink-0 text-xs"
+                        title="종료일"
+                      />
+                      <Input
+                        value={row.content}
+                        onChange={(e) =>
+                          updateDraft(row.key, { content: e.target.value })
+                        }
+                        placeholder="업무 내용"
+                        className="h-8 min-w-[120px] flex-1 text-sm"
+                      />
+                      <Input
+                        type="number"
+                        step="0.25"
+                        min="0"
+                        value={row.md}
+                        onChange={(e) =>
+                          updateDraft(row.key, {
+                            md: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="h-8 w-14 shrink-0 font-numeric text-xs"
+                        title="M/D"
+                      />
+                      <Select
+                        value={row.status}
+                        onValueChange={(v) =>
+                          updateDraft(row.key, { status: v as TaskStatus })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-[72px] shrink-0 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(
+                            Object.keys(TASK_STATUS_LABELS) as TaskStatus[]
+                          ).map((s) => (
+                            <SelectItem key={s} value={s} className="text-xs">
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {drafts.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-destructive"
+                          onClick={() => removeDraftRow(row.key)}
+                          title="삭제"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addDraftRow}
+                    >
+                      <Plus className="mr-1 h-4 w-4" />
+                      추가
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      {savedFlash && (
+                        <span className="text-xs text-emerald-600">저장됨</span>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={validDrafts.length === 0}
+                        onClick={handleSave}
+                      >
+                        <Save className="mr-1 h-4 w-4" />
+                        저장 ({validDrafts.length})
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <TaskTable
+                tasks={displayTasks}
+                showUser={variant === "admin"}
+                editable={
+                  writable &&
+                  !!currentUser &&
+                  canEditTask(currentUser.id)
+                }
+                onDelete={deleteWeeklyTask}
+              />
+            </TabsContent>
+          );
+        })}
+      </Tabs>
+    </Card>
   );
 }
 
-function MeetingTaskSections({ yearTasks }: { yearTasks: WeeklyTask[] }) {
-  const [activeWeek, setActiveWeek] = useState<TaskType>("THIS_WEEK");
-  const tasksForWeek = yearTasks.filter((t) => t.taskType === activeWeek);
+function MeetingTaskSections({
+  yearTasks,
+  reportWeekStart,
+}: {
+  yearTasks: WeeklyTask[];
+  reportWeekStart: Date;
+}) {
+  const [activeView, setActiveView] = useState<ReportTaskView>("THIS_WEEK");
+  const tasksForView = filterTasksByReportView(
+    yearTasks,
+    reportWeekStart,
+    activeView
+  );
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs
-          value={activeWeek}
-          onValueChange={(v) => setActiveWeek(v as TaskType)}
+          value={activeView}
+          onValueChange={(v) => setActiveView(v as ReportTaskView)}
         >
-          <TabsList className="h-10">
-            <TabsTrigger value="THIS_WEEK" className="px-5">
-              {TASK_TYPE_LABELS.THIS_WEEK} (
-              {yearTasks.filter((t) => t.taskType === "THIS_WEEK").length})
-            </TabsTrigger>
-            <TabsTrigger value="NEXT_WEEK" className="px-5">
-              {TASK_TYPE_LABELS.NEXT_WEEK} (
-              {yearTasks.filter((t) => t.taskType === "NEXT_WEEK").length})
-            </TabsTrigger>
-          </TabsList>
+          <ReportTaskTabsList
+            showCounts
+            counts={Object.fromEntries(
+              REPORT_TASK_VIEWS.map((view) => [
+                view,
+                filterTasksByReportView(yearTasks, reportWeekStart, view).length,
+              ])
+            )}
+          />
         </Tabs>
         <Badge variant="outline" className="gap-1">
           <Presentation className="h-3 w-3" />
-          회의 모드 · 파트별 통합 뷰
+          회의 모드 · {formatWeekRange(reportWeekStart)}
         </Badge>
       </div>
 
       {WORK_PARTS.map((part) => {
-        const partTasks = tasksForWeek.filter((t) => t.part === part);
+        const partTasks = tasksForView.filter((t) => t.part === part);
         if (partTasks.length === 0) return null;
         const partMD = partTasks.reduce((s, t) => s + t.md, 0);
         return (
@@ -564,6 +734,7 @@ export function WeeklyReportView() {
   const {
     currentUser,
     projects,
+    weeklyTasks,
     projectFilter,
     meetingMode,
     setMeetingMode,
@@ -571,12 +742,19 @@ export function WeeklyReportView() {
     filteredWeeklyTasks,
   } = useApp();
 
-  const availableYears = useMemo(
-    () => getAvailableYears(projects),
-    [projects]
-  );
+  const availableYears = useMemo(() => {
+    const merged = new Set([
+      ...getAvailableYears(projects),
+      ...getTaskYears(weeklyTasks),
+    ]);
+    return [...merged].sort((a, b) => b - a);
+  }, [projects, weeklyTasks]);
   const [selectedYear, setSelectedYear] = useState(() =>
-    getDefaultSelectedYear(getAvailableYears(projects))
+    getDefaultSelectedYear(
+      [...new Set([...getAvailableYears(projects), ...getTaskYears(weeklyTasks)])].sort(
+        (a, b) => b - a
+      )
+    )
   );
   const [reportWeekStart, setReportWeekStart] = useState(() =>
     getAnchorWeekForYear(getDefaultSelectedYear(getAvailableYears(projects)))
@@ -610,6 +788,11 @@ export function WeeklyReportView() {
   };
 
   const isMember = currentUser?.role === "MEMBER";
+  const thisWeekCount = filterTasksByReportView(
+    yearTasks,
+    reportWeekStart,
+    "THIS_WEEK"
+  ).length;
 
   return (
     <div className={cn("page-stack", meetingMode && "max-w-none")}>
@@ -617,7 +800,7 @@ export function WeeklyReportView() {
         icon={ClipboardList}
         iconClassName="bg-violet-500/10 text-violet-600 ring-violet-500/15"
         title={`주간 업무 보고 (${selectedYear})`}
-        description={`${selectedYear}년 프로젝트 · 이번주 이슈 · 실적/계획 통합 관리`}
+        description={`이번주 이슈 · 실적/계획 · 더미: ${formatWeekRange(reportWeekStart)} 주차 기준`}
       >
         <YearFilterSelect
           years={availableYears}
@@ -640,6 +823,14 @@ export function WeeklyReportView() {
         )}
       </PageHeader>
 
+      {!isMember && canViewAllReports() && (
+        <p className="rounded-lg border border-violet-200/80 bg-violet-50/50 px-4 py-2.5 text-xs text-violet-900">
+          전체 조회는 관리자/팀장 화면입니다. 업무 작성은{" "}
+          <strong>MEMBER</strong> 계정(예: 김찬기) 로그인 또는 상단 Demo 역할
+          전환 후 확인하세요. 이번주 실적 더미 {thisWeekCount}건.
+        </p>
+      )}
+
       {/* 이번주 이슈 — 항상 표시 (등록 + 조회) */}
       <WeeklyProjectIssueBoard
         weekStart={reportWeekStart}
@@ -650,39 +841,28 @@ export function WeeklyReportView() {
       />
 
       {isMember && !meetingMode && (
-        <TaskEntryForm yearProjects={yearProjects} yearTasks={yearTasks} />
+        <WeeklyTaskSection
+          variant="member"
+          yearProjects={yearProjects}
+          yearTasks={yearTasks}
+          reportWeekStart={reportWeekStart}
+        />
       )}
 
       {canViewAllReports() && meetingMode && (
-        <MeetingTaskSections yearTasks={yearTasks} />
+        <MeetingTaskSections
+          yearTasks={yearTasks}
+          reportWeekStart={reportWeekStart}
+        />
       )}
 
       {canViewAllReports() && !meetingMode && (
-        <Tabs defaultValue="THIS_WEEK">
-          <TabsList>
-            <TabsTrigger value="THIS_WEEK">이번주 실적</TabsTrigger>
-            <TabsTrigger value="NEXT_WEEK">다음주 계획</TabsTrigger>
-          </TabsList>
-          {(["THIS_WEEK", "NEXT_WEEK"] as TaskType[]).map((type) => (
-            <TabsContent key={type} value={type}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {selectedYear}년 {TASK_TYPE_LABELS[type]} 전체 (
-                    {yearTasks.filter((t) => t.taskType === type).length}
-                    건)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <TaskTable
-                    tasks={yearTasks.filter((t) => t.taskType === type)}
-                    showUser
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          ))}
-        </Tabs>
+        <WeeklyTaskSection
+          variant="admin"
+          yearProjects={yearProjects}
+          yearTasks={yearTasks}
+          reportWeekStart={reportWeekStart}
+        />
       )}
     </div>
   );

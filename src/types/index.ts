@@ -6,9 +6,38 @@ export type ProjectStatus = "완료" | "진행" | "홀드";
 
 export type TaskType = "THIS_WEEK" | "NEXT_WEEK";
 
+/** 주간 보고 탭 — 저번주 실적은 조회 전용 */
+export type ReportTaskView = TaskType | "LAST_WEEK";
+
 export type TaskStatus = "완료" | "진행";
 
+export type IssueStatus = "완료" | "진행";
+
 export type WorkPart = "기획" | "디자인" | "퍼블리싱";
+
+/** 프로젝트 수주(배정) M/D — 파트별 */
+export type AllocatedMdPart = "기획" | "디자인" | "퍼블리싱" | "기타";
+
+export interface ProjectAllocatedMd {
+  기획: number;
+  디자인: number;
+  퍼블리싱: number;
+  기타: number;
+}
+
+export const ALLOCATED_MD_PARTS: AllocatedMdPart[] = [
+  "기획",
+  "디자인",
+  "퍼블리싱",
+  "기타",
+];
+
+export const DEFAULT_ALLOCATED_MD: ProjectAllocatedMd = {
+  기획: 0,
+  디자인: 0,
+  퍼블리싱: 0,
+  기타: 0,
+};
 
 export type Weekday =
   | "monday"
@@ -42,6 +71,8 @@ export interface Project {
   scheduleShareToken?: string;
   /** 링크 공유 활성화 — 프로젝트 WBS 일정표 전체 */
   scheduleLinkShareEnabled?: boolean;
+  /** 파트별 수주(배정) M/D */
+  allocatedMd: ProjectAllocatedMd;
 }
 
 export interface ProjectIssue {
@@ -51,6 +82,7 @@ export interface ProjectIssue {
   date: string;
   weekStart: string;
   content: string;
+  status: IssueStatus;
 }
 
 /** 이슈와 별도 — 일정·참고 등 비고 (예: 2026/06/01 디자인 시안 확인) */
@@ -70,6 +102,7 @@ export interface ProjectResourceLink {
   part: WorkPart;
   label: string;
   url: string;
+  userId: string;
 }
 
 export interface WeeklyTask {
@@ -148,14 +181,22 @@ export const PART_GANTT_TEXT: Record<WorkPart, string> = {
 export interface MeetingNote {
   id: string;
   projectId: string;
+  /** 회의주제 */
   title: string;
+  /** YYYY-MM-DD — 연도 필터용 */
   date: string;
-  /** Tiptap HTML */
+  /** HH:mm — 회의 시각 */
+  meetingTime: string;
+  /** 작성자 표시명 (예: 김찬기 과장) */
+  authorName: string;
+  /** 회의장소 */
+  location: string;
+  /** 참석자 (팀별 줄바꿈 가능) */
+  participants: string;
+  /** 안건 및 협의내용 — Tiptap HTML */
   content: string;
   authorId: string;
-  /** 링크 공유용 고유 토큰 */
   shareToken: string;
-  /** 링크를 가진 누구나 조회 (계정 불필요) */
   linkShareEnabled: boolean;
 }
 
@@ -193,7 +234,24 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   NEXT_WEEK: "다음주 계획",
 };
 
+export const REPORT_TASK_VIEW_LABELS: Record<ReportTaskView, string> = {
+  THIS_WEEK: "이번주 실적",
+  LAST_WEEK: "저번주 실적",
+  NEXT_WEEK: "다음주 계획",
+};
+
+export const REPORT_TASK_VIEWS: ReportTaskView[] = [
+  "LAST_WEEK",
+  "THIS_WEEK",
+  "NEXT_WEEK",
+];
+
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  완료: "완료",
+  진행: "진행",
+};
+
+export const ISSUE_STATUS_LABELS: Record<IssueStatus, string> = {
   완료: "완료",
   진행: "진행",
 };

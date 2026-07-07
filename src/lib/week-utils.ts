@@ -10,9 +10,10 @@ import {
   endOfMonth,
   eachDayOfInterval,
   isSameDay,
+  isSameWeek,
 } from "date-fns";
 import { ko } from "date-fns/locale";
-import type { Weekday } from "@/types";
+import type { ReportTaskView, Weekday, WeeklyTask } from "@/types";
 
 export const WEEKDAYS: Weekday[] = [
   "monday",
@@ -111,4 +112,39 @@ export function getAnchorWeekForYear(year: number): Date {
     return getWeekStart(now);
   }
   return getWeekBoundsForYear(year).max;
+}
+
+/** 탭별 기준 주차 (월요일) */
+export function getWeekStartForReportView(
+  reportWeekStart: Date,
+  view: ReportTaskView
+): Date {
+  if (view === "LAST_WEEK") return subWeeks(reportWeekStart, 1);
+  if (view === "NEXT_WEEK") return addWeeks(reportWeekStart, 1);
+  return reportWeekStart;
+}
+
+/** 주간 보고 주차 기준으로 실적·계획 업무 필터 */
+export function filterTasksByReportView(
+  tasks: WeeklyTask[],
+  reportWeekStart: Date,
+  view: ReportTaskView
+): WeeklyTask[] {
+  if (view === "NEXT_WEEK") {
+    const nextWeek = addWeeks(reportWeekStart, 1);
+    return tasks.filter(
+      (t) =>
+        t.taskType === "NEXT_WEEK" &&
+        isSameWeek(parseISO(t.startDate), nextWeek, { weekStartsOn: 1 })
+    );
+  }
+
+  const targetWeek =
+    view === "LAST_WEEK" ? subWeeks(reportWeekStart, 1) : reportWeekStart;
+
+  return tasks.filter(
+    (t) =>
+      t.taskType === "THIS_WEEK" &&
+      isSameWeek(parseISO(t.startDate), targetWeek, { weekStartsOn: 1 })
+  );
 }

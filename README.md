@@ -9,18 +9,12 @@ npm install
 npm run dev
 ```
 
-## GitHub Pages
+## 배포
 
-`main` 브랜치에 push하면 GitHub Actions가 자동으로 빌드·배포합니다.
-
-- **URL:** https://all4uiteam.github.io/project-manager/
-- **설정:** Repository → Settings → Pages → Source: **GitHub Actions**
-
-로컬에서 Pages와 동일하게 빌드하려면:
-
-```bash
-GITHUB_PAGES=true npm run build
-```
+| 방식 | 문서 | URL |
+|------|------|-----|
+| **Vercel (권장)** | [**VERCEL.md**](VERCEL.md) | `https://xxxx.vercel.app` |
+| UCS 서버 직접 | [SERVE.md](SERVE.md) | `https://ucs.all4land.com/pm/` |
 
 ## 데모 계정
 
@@ -31,13 +25,10 @@ GITHUB_PAGES=true npm run build
 | 팀원(기획) | changi@all4land.com | member123 |
 | 팀원(퍼블) | seungjun@all4land.com | member123 |
 
-## 공유 회의록 예시
+## 공유 링크 예시
 
-https://all4uiteam.github.io/project-manager/share/meetings/demo-af02-weekly-jun3/
-
-## 공유 프로젝트 일정표 예시
-
-https://all4uiteam.github.io/project-manager/share/schedule/demo-af02hp-schedule/
+로컬: `http://localhost:3000/share/meetings/?token=...`  
+서버: `https://your-domain/share/meetings/?token=...`
 
 ---
 
@@ -91,9 +82,9 @@ src/app/
 
 ## 데이터 출처
 
-현재는 **클라이언트 메모리 + localStorage** 기반 데모입니다. 초기값은 `src/data/mock-data.ts`이며, 브라우저 `localStorage`(`a4-app-snapshot`)에 스냅샷이 저장되어 새로고침 후에도 CRUD 결과가 유지됩니다.
+**PostgreSQL** (`ucsdb` / `work` 스키마) + **Prisma** + Next.js API Route.
 
-| 데이터 | Context state | 등록·수정 위치 |
+| 데이터 | API / 테이블 | 등록·수정 위치 |
 |--------|---------------|----------------|
 | 프로젝트 | `projects` | 프로젝트 현황 |
 | 주간 업무 / M·D / 투입 멤버 | `weeklyTasks` | 주간 업무 보고 |
@@ -110,5 +101,5 @@ src/app/
 ## 스택
 
 - Next.js 16 (App Router), Tailwind CSS, shadcn/ui, Recharts
-- Static export (`output: "export"`) → GitHub Pages 배포
-- 상태: `src/context/app-context.tsx` (React Context)
+- PostgreSQL + Prisma
+- 서버 실행: `npm run build` → `npm run start`

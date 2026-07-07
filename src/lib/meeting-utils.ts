@@ -11,16 +11,19 @@ export function plainTextToHtml(text: string) {
     .join("");
 }
 
+import { withBasePath } from "@/lib/base-path";
+
+function resolveShareUrl(path: string) {
+  if (typeof window === "undefined") return withBasePath(path);
+  return `${window.location.origin}${withBasePath(path)}`;
+}
+
 export function getMeetingShareUrl(shareToken: string) {
-  if (typeof window === "undefined") {
-    return `/share/meetings/${shareToken}`;
-  }
-  return `${window.location.origin}/share/meetings/${shareToken}`;
+  const path = `/share/meetings/?token=${encodeURIComponent(shareToken)}`;
+  return resolveShareUrl(path);
 }
 
 export function getScheduleShareUrl(shareToken: string) {
-  if (typeof window === "undefined") {
-    return `/share/schedule/${shareToken}`;
-  }
-  return `${window.location.origin}/share/schedule/${shareToken}`;
+  const path = `/share/schedule/?token=${encodeURIComponent(shareToken)}`;
+  return resolveShareUrl(path);
 }

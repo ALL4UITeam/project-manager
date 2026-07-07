@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  MASTER
+  LEADER
+  MEMBER
+  EXTERNAL
+}
+
+enum UserPart {
+  PLANNING
+  DESIGN
+  PUBLISHING
+  DEV
+}
+
+model User {
+  id        String   @id
+  name      String
+  email     String   @unique
+  role      UserRole
+  part      UserPart
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  weeklyTasks          WeeklyTask[]
+  projectIssues        ProjectIssue[]
+  projectRemarks       ProjectRemark[]
+  projectResourceLinks ProjectResourceLink[]
+  meetingNotes         MeetingNote[]
+
+  @@map("users")
+}
+
+model Project {
+  id                       String   @id
+  code                     String   @unique
+  name                     String
+  pmName                   String   @map("pm_name")
+  startDate                String   @map("start_date")
+  endDate                  String   @map("end_date")
+  status                   String
+  assigneePrimary          String   @map("assignee_primary")
+  assigneeSecondary        String?  @map("assignee_secondary")
+  scheduleShareToken       String?  @map("schedule_share_token")
+  scheduleLinkShareEnabled Boolean  @default(false) @map("schedule_link_share_enabled")
+  allocatedMdPlanning      Decimal  @default(0) @map("allocated_md_planning") @db.Decimal(8, 2)
+  allocatedMdDesign        Decimal  @default(0) @map("allocated_md_design") @db.Decimal(8, 2)
+  allocatedMdPublishing    Decimal  @default(0) @map("allocated_md_publishing") @db.Decimal(8, 2)
+  allocatedMdOther         Decimal  @default(0) @map("allocated_md_other") @db.Decimal(8, 2)
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  weeklyTasks          WeeklyTask[]
+  projectIssues        ProjectIssue[]
+  projectRemarks       ProjectRemark[]
+  projectResourceLinks ProjectResourceLink[]
+  calendarMilestones   CalendarMilestone[]
+  scheduleRows         ScheduleRow[]
+  scheduleNotes        ScheduleNote[]
+  meetingNotes         MeetingNote[]
+
+  @@index([status])
+  @@index([startDate, endDate])
+  @@map("projects")
+}
+
+model WeeklyTask {
+  id        String   @id
+  projectId String   @map("project_id")
+  userId    String   @map("user_id")
+  part      String
+  taskType  String   @map("task_type")
+  startDate String   @map("start_date")
+  endDate   String   @map("end_date")
+  status    String
+  content   String
+  md        Decimal  @db.Decimal(8, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([taskType, startDate])
+  @@map("weekly_tasks")
+}
+
+model ProjectIssue {
+  id        String   @id
+  projectId String   @map("project_id")
+  userId    String   @map("user_id")
+  date      String
+  weekStart String   @map("week_start")
+  content   String
+  status    String   @default("진행")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, weekStart])
+  @@map("project_issues")
+}
+
+model ProjectRemark {
+  id        String   @id
+  projectId String   @map("project_id")
+  userId    String   @map("user_id")
+  date      String
+  weekStart String   @map("week_start")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, weekStart])
+  @@map("project_remarks")
+}
+
+model ProjectResourceLink {
+  id        String   @id
+  projectId String   @map("project_id")
+  part      String
+  label     String
+  url       String
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, part])
+  @@map("project_resource_links")
+}
+
+model CalendarMilestone {
+  id          String   @id
+  title       String
+  date        String
+  projectId   String?  @map("project_id")
+  description String?
+  isShared    Boolean  @default(false) @map("is_shared")
+  isTeamAdmin Boolean  @default(false) @map("is_team_admin")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([projectId])
+  @@map("calendar_milestones")
+}
+
+model ScheduleRow {
+  id        String   @id
+  projectId String   @map("project_id")
+  service   String
+  part      String
+  taskName  String   @map("task_name")
+  startDate String   @map("start_date")
+  endDate   String   @map("end_date")
+  sortOrder Int      @map("sort_order")
+  remarks   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+  @@map("schedule_rows")
+}
+
+model ScheduleNote {
+  id        String   @id
+  projectId String   @map("project_id")
+  date      String?
+  content   String
+  sortOrder Int      @map("sort_order")
+  isShared  Boolean  @default(false) @map("is_shared")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+  @@map("schedule_notes")
+}
+
+model MeetingNote {
+  id               String   @id
+  projectId        String   @map("project_id")
+  title            String
+  date             String
+  meetingTime      String   @map("meeting_time")
+  authorName       String   @map("author_name")
+  location         String
+  participants     String   @db.Text
+  content          String   @db.Text
+  authorId         String   @map("author_id")
+  shareToken       String   @unique @map("share_token")
+  linkShareEnabled Boolean  @default(false) @map("link_share_enabled")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, date])
+  @@map("meeting_notes")
+}

@@ -25,9 +25,16 @@ import {
   List,
   FolderKanban,
   User,
+  Scale,
 } from "lucide-react";
 import { useApp } from "@/context/app-context";
-import { WORK_PARTS, TASK_TYPE_LABELS, type TaskType } from "@/types";
+import { WORK_PARTS, TASK_TYPE_LABELS, PART_LABELS, ALLOCATED_MD_PARTS, type TaskType } from "@/types";
+import {
+  getActualMdByPart,
+  sumAllocatedMd,
+  formatMdPair,
+  mdUsagePct,
+} from "@/lib/project-md-utils";
 import { GlobalProjectFilter } from "@/components/shared/global-project-filter";
 import { PageHeader } from "@/components/shared/page-header";
 import { YearFilterSelect } from "@/components/shared/year-filter-select";
@@ -37,6 +44,7 @@ import {
   filterProjectsByYear,
   dateInYear,
 } from "@/lib/project-utils";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -60,6 +68,7 @@ const PART_COLORS: Record<string, string> = {
   기획: "#f59e0b",
   디자인: "#ec4899",
   퍼블리싱: "#06b6d4",
+  기타: "#94a3b8",
 };
 
 const PART_ICONS = {
@@ -67,6 +76,12 @@ const PART_ICONS = {
   디자인: Palette,
   퍼블리싱: Code2,
 } as const;
+
+const PART_ACCENT: Record<string, string> = {
+  기획: "border-amber-200 bg-amber-50/50",
+  디자인: "border-pink-200 bg-pink-50/50",
+  퍼블리싱: "border-cyan-200 bg-cyan-50/50",
+};
 
 type DetailView = "grouped" | "flat" | string;
 
@@ -133,6 +148,7 @@ function PieTooltip({
 export function MDDashboard() {
   const {
     projects,
+    weeklyTasks,
     filteredWeeklyTasks,
     getProjectById,
     getUserById,
@@ -147,6 +163,7 @@ export function MDDashboard() {
   const [selectedYear, setSelectedYear] = useState(() =>
     getDefaultSelectedYear(getAvailableYears(projects))
   );
+  const [memberProjectFilter, setMemberProjectFilter] = useState("all");
   const [detailView, setDetailView] = useState<DetailView>("grouped");
 
   const projectsInYear = useMemo(
@@ -184,6 +201,12 @@ export function MDDashboard() {
       );
       if (!stillVisible) setProjectFilter("all");
     }
+    if (memberProjectFilter !== "all") {
+      const stillVisible = filterProjectsByYear(projects, year).some(
+        (p) => p.id === memberProjectFilter
+      );
+      if (!stillVisible) setMemberProjectFilter("all");
+    }
   };
 
   const chartData = useMemo(() => {
@@ -213,11 +236,101 @@ export function MDDashboard() {
 
   const totalMD = yearTasks.reduce((s, t) => s + t.md, 0);
 
-  const partSummary = WORK_PARTS.map((part) => ({
+  const totalAllocated = useMemo(
+    () =>
+      yearProjects.reduce(
+        (s, p) => s + sumAllocatedMd(p.allocatedMd),
+        0
+      ),
+    [yearProjects]
+  );
+
+  const allocatedByPart = useMemo(() => {
+    return ALLOCATED_MD_PARTS.reduce(
+      (acc, part) => {
+        acc[part] = yearProjects.reduce(
+          (s, p) => s + p.allocatedMd[part],
+          0
+        );
+        return acc;
+      },
+      {} as Record<(typeof ALLOCATED_MD_PARTS)[number], number>
+    );
+  }, [yearProjects]);
+
+  const projectMdComparison = useMemo(() => {
+    return [...yearProjects]
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .map((project) => {
+        const actual = getActualMdByPart(yearTasks, project.id);
+        const allocated = project.allocatedMd;
+        const actualTotal = sumAllocatedMd(actual);
+        const allocatedTotal = sumAllocatedMd(allocated);
+        return {
+          project,
+          actual,
+          allocated,
+          actualTotal,
+          allocatedTotal,
+        };
+      });
+  }, [yearProjects, yearTasks]);
+
+  const memberYearTasks = useMemo(() => {
+    const projectIds =
+      memberProjectFilter === "all"
+        ? new Set(projectsInYear.map((p) => p.id))
+        : new Set([memberProjectFilter]);
+
+    return weeklyTasks.filter(
+      (t) =>
+        t.taskType === "THIS_WEEK" &&
+        dateInYear(t.startDate, selectedYear) &&
+        projectIds.has(t.projectId)
+    );
+  }, [weeklyTasks, selectedYear, projectsInYear, memberProjectFilter]);
+
+  const memberStatsByPart = useMemo(() => {
+    return WORK_PARTS.map((part) => {
+      const map = new Map<string, { md: number; taskCount: number }>();
+      for (const task of memberYearTasks.filter((t) => t.part === part)) {
+        const entry = map.get(task.userId) ?? { md: 0, taskCount: 0 };
+        entry.md += task.md;
+        entry.taskCount += 1;
+        map.set(task.userId, entry);
+      }
+      const members = [...map.entries()]
+        .map(([userId, stats]) => ({
+          user: getUserById(userId),
+          ...stats,
+        }))
+        .filter((m) => m.user)
+        .sort((a, b) => b.md - a.md);
+      const partTotal = members.reduce((s, m) => s + m.md, 0);
+      return { part, members, partTotal };
+    });
+  }, [memberYearTasks, getUserById]);
+
+  const activeMemberCount = useMemo(
+    () => new Set(memberYearTasks.map((t) => t.userId)).size,
+    [memberYearTasks]
+  );
+
+  const hasMemberStats = memberStatsByPart.some((p) => p.members.length > 0);
+
+  const memberProjectLabel =
+    memberProjectFilter === "all"
+      ? "전체 프로젝트"
+      : (getProjectById(memberProjectFilter)?.code ?? "프로젝트");
+
+  const partSummary = ALLOCATED_MD_PARTS.map((part) => ({
     part,
-    md: yearTasks
-      .filter((t) => t.part === part)
-      .reduce((s, t) => s + t.md, 0),
+    md: part === "기타"
+      ? 0
+      : yearTasks
+          .filter((t) => t.part === part)
+          .reduce((s, t) => s + t.md, 0),
+    allocated: allocatedByPart[part],
   }));
 
   const pieData = useMemo(
@@ -353,7 +466,7 @@ export function MDDashboard() {
         icon={BarChart3}
         iconClassName="bg-amber-500/10 text-amber-600 ring-amber-500/15"
         title={`M/D 공수 현황 (${selectedYear})`}
-        description={`${selectedYear}년 프로젝트 · 이번주 실적 M/D 집계 (시작~종료 연도 기준)`}
+        description={`${selectedYear}년 프로젝트 · 연간 M/D 집계 (주간보고 이번주 실적 누적)`}
       >
         <YearFilterSelect
           years={availableYears}
@@ -363,8 +476,109 @@ export function MDDashboard() {
         <GlobalProjectFilter projects={projectsInYear} />
       </PageHeader>
 
+      <div className="space-y-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="flex items-center gap-2 font-display text-sm font-semibold">
+              <User className="h-4 w-4 text-primary" />
+              인력별 투입 현황 · {selectedYear}년
+            </h3>
+            <Select
+              value={memberProjectFilter}
+              onValueChange={setMemberProjectFilter}
+            >
+              <SelectTrigger className="h-8 w-[168px] text-xs">
+                <SelectValue placeholder="프로젝트" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 프로젝트</SelectItem>
+                {projectsInYear.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.code} · {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {selectedYear}년 연간 누적 M/D · {memberProjectLabel} ·{" "}
+            {activeMemberCount}명
+          </p>
+        </div>
+
+        {!hasMemberStats ? (
+          <Card className="glass-card border-0">
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              집계할 투입 데이터가 없습니다
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-3">
+            {memberStatsByPart.map(({ part, members, partTotal }) => {
+              const Icon = PART_ICONS[part as keyof typeof PART_ICONS];
+              const color = PART_COLORS[part];
+              return (
+                <Card
+                  key={part}
+                  className={cn("border glass-card", PART_ACCENT[part] ?? "border-border")}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center justify-between text-base">
+                      <span className="flex items-center gap-2">
+                        {Icon && (
+                          <Icon className="h-4 w-4" style={{ color }} />
+                        )}
+                        [{part}]
+                      </span>
+                      <Badge variant="secondary" className="font-numeric text-xs">
+                        M/D {partTotal.toFixed(2)}
+                      </Badge>
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      {members.length}명 · 업무{" "}
+                      {members.reduce((s, m) => s + m.taskCount, 0)}건
+                    </p>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {members.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-muted-foreground">
+                        투입 이력 없음
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {members.map(({ user, md, taskCount }) => (
+                          <li
+                            key={user!.id}
+                            className="flex items-center justify-between rounded-lg border border-border/60 bg-card/80 px-3 py-2.5"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                {user!.name}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {PART_LABELS[user!.part]} · {taskCount}건
+                              </p>
+                            </div>
+                            <p
+                              className="font-numeric text-lg font-bold"
+                              style={{ color }}
+                            >
+                              {md.toFixed(2)}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* KPI cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="glass-card overflow-hidden border-0">
           <CardContent className="relative p-4">
             <div className="absolute -right-3 -top-3 opacity-[0.07]">
@@ -378,12 +592,25 @@ export function MDDashboard() {
                 총 M/D · {selectedYear}년 · {selectedProjectLabel}
               </p>
             </div>
-            <p className="stat-value mt-2 text-2xl">{totalMD.toFixed(2)}</p>
+            <p className="stat-value mt-2 text-2xl">
+              {totalMD.toFixed(2)}
+              <span className="text-base font-normal text-muted-foreground">
+                {" "}
+                / {totalAllocated.toFixed(2)}
+              </span>
+            </p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              투입 / 수주 M/D
+            </p>
           </CardContent>
         </Card>
-        {partSummary.map(({ part, md }) => {
-          const Icon = PART_ICONS[part as keyof typeof PART_ICONS];
+        {partSummary.map(({ part, md, allocated }) => {
+          const Icon =
+            part === "기타"
+              ? Scale
+              : PART_ICONS[part as keyof typeof PART_ICONS];
           const color = PART_COLORS[part];
+          const over = allocated > 0 && md > allocated;
           return (
             <Card key={part} className="glass-card overflow-hidden border-0">
               <CardContent className="relative p-4">
@@ -391,26 +618,156 @@ export function MDDashboard() {
                   className="absolute -right-3 -top-3 opacity-[0.08]"
                   style={{ color }}
                 >
-                  <Icon className="h-20 w-20" />
+                  {Icon && <Icon className="h-20 w-20" />}
                 </div>
                 <div className="flex items-center gap-2">
                   <div
                     className="flex h-8 w-8 items-center justify-center rounded-lg"
                     style={{ backgroundColor: `${color}18`, color }}
                   >
-                    <Icon className="h-4 w-4" />
+                    {Icon && <Icon className="h-4 w-4" />}
                   </div>
                   <p className="text-xs font-medium text-muted-foreground">{part}</p>
                 </div>
-                <p className="font-numeric mt-2 text-2xl font-semibold tracking-tight">
+                <p
+                  className={cn(
+                    "font-numeric mt-2 text-2xl font-semibold tracking-tight",
+                    over && "text-destructive"
+                  )}
+                >
                   {md.toFixed(2)}
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">M/D</span>
+                  <span className="text-base font-normal text-muted-foreground">
+                    {" "}
+                    / {allocated.toFixed(2)}
+                  </span>
                 </p>
+                {allocated > 0 && (
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${mdUsagePct(md, allocated)}%`,
+                        backgroundColor: over ? "var(--destructive)" : color,
+                      }}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {/* 프로젝트별 수주·투입 */}
+      <Card className="glass-card border-0">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 font-display text-sm">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+              <Scale className="h-3.5 w-3.5" />
+            </div>
+            프로젝트별 수주·투입 M/D
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {selectedYear}년 · 셀 표기: 투입 / 수주 (실적 / 계약 공수)
+          </p>
+        </CardHeader>
+        <CardContent className="p-0">
+          {projectMdComparison.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              해당 연도 프로젝트가 없습니다
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="w-24 font-semibold">코드</TableHead>
+                    <TableHead className="min-w-[180px] font-semibold">
+                      프로젝트
+                    </TableHead>
+                    {ALLOCATED_MD_PARTS.map((part) => (
+                      <TableHead
+                        key={part}
+                        className="w-24 text-center font-semibold"
+                      >
+                        {part}
+                      </TableHead>
+                    ))}
+                    <TableHead className="w-24 text-center font-semibold">
+                      합계
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {projectMdComparison.map(
+                    ({ project, actual, allocated, actualTotal, allocatedTotal }) => (
+                      <TableRow key={project.id}>
+                        <TableCell className="font-mono text-xs font-bold text-primary">
+                          {project.code}
+                        </TableCell>
+                        <TableCell className="max-w-[220px] truncate text-sm">
+                          {project.name}
+                        </TableCell>
+                        {ALLOCATED_MD_PARTS.map((part) => {
+                          const a = actual[part];
+                          const b = allocated[part];
+                          const over = b > 0 && a > b;
+                          return (
+                            <TableCell
+                              key={part}
+                              className={cn(
+                                "text-center font-numeric text-xs",
+                                over && "font-semibold text-destructive"
+                              )}
+                            >
+                              {formatMdPair(a, b)}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell
+                          className={cn(
+                            "text-center font-numeric text-xs font-semibold",
+                            allocatedTotal > 0 &&
+                              actualTotal > allocatedTotal &&
+                              "text-destructive"
+                          )}
+                        >
+                          {formatMdPair(actualTotal, allocatedTotal)}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  )}
+                </TableBody>
+                <TableFooter>
+                  <TableRow className="bg-muted/15 hover:bg-muted/15">
+                    <TableCell colSpan={2} className="text-right text-xs font-medium">
+                      전체 합계
+                    </TableCell>
+                    {ALLOCATED_MD_PARTS.map((part) => {
+                      const a = projectMdComparison.reduce(
+                        (s, r) => s + r.actual[part],
+                        0
+                      );
+                      const b = allocatedByPart[part];
+                      return (
+                        <TableCell
+                          key={part}
+                          className="text-center font-numeric text-xs font-semibold"
+                        >
+                          {formatMdPair(a, b)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="text-center font-numeric text-xs font-bold text-primary">
+                      {formatMdPair(totalMD, totalAllocated)}
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Charts */}
       <div className="grid gap-3 lg:grid-cols-5">
@@ -544,12 +901,19 @@ export function MDDashboard() {
               </div>
             )}
             <div className="mt-1 space-y-2">
-              {partSummary.map(({ part, md }) => {
+              {partSummary
+                .filter(({ md }) => md > 0)
+                .map(({ part, md }) => {
                 const pct = totalMD > 0 ? (md / totalMD) * 100 : 0;
-                const Icon = PART_ICONS[part as keyof typeof PART_ICONS];
+                const Icon =
+                  part === "기타"
+                    ? Scale
+                    : PART_ICONS[part as keyof typeof PART_ICONS];
                 return (
                   <div key={part} className="flex items-center gap-2 text-xs">
-                    <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: PART_COLORS[part] }} />
+                    {Icon && (
+                      <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: PART_COLORS[part] }} />
+                    )}
                     <span className="w-14 shrink-0">{part}</span>
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                       <div

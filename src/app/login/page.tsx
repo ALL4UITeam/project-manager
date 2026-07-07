@@ -43,7 +43,7 @@ const ROLE_ACCENTS: Record<UserRole, string> = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loginAs, currentUser } = useApp();
+  const { login, loginAs, currentUser, users } = useApp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -56,19 +56,18 @@ export default function LoginPage() {
     }
   }, [currentUser, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = login(email, password);
-    if (ok) {
-      const user = quickLoginAccounts.find((u) => u.email === email);
-      router.push(user?.role === "EXTERNAL" ? "/calendar" : "/projects");
+    const user = await login(email, password);
+    if (user) {
+      router.push(user.role === "EXTERNAL" ? "/calendar" : "/projects");
     } else {
       setError("이메일 또는 비밀번호가 올바르지 않습니다.");
     }
   };
 
   const handleQuickLogin = (role: UserRole) => {
-    const user = quickLoginAccounts.find((u) => u.role === role);
+    const user = users.find((u) => u.role === role);
     if (user) {
       loginAs(user.id);
       router.push(role === "EXTERNAL" ? "/calendar" : "/projects");
