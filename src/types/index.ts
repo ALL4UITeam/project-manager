@@ -214,6 +214,22 @@ export const PART_LABELS: Record<UserPart, string> = {
   DEV: "개발",
 };
 
+/** 계정 목록·발급 폼 파트 순서 */
+export const USER_PARTS_ORDERED: UserPart[] = [
+  "PLANNING",
+  "DESIGN",
+  "PUBLISHING",
+  "DEV",
+];
+
+/** 권한 선택 순서 — 외부 협력은 맨 아래 */
+export const USER_ROLES_ORDERED: UserRole[] = [
+  "MASTER",
+  "LEADER",
+  "MEMBER",
+  "EXTERNAL",
+];
+
 export const WORK_PARTS: WorkPart[] = ["기획", "디자인", "퍼블리싱"];
 
 export const USER_PART_TO_WORK: Record<UserPart, WorkPart | null> = {

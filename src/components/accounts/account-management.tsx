@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import { Plus, Shield, Users, UserPlus, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -10,9 +10,12 @@ import {
   formInputClassName,
 } from "@/components/shared/form-dialog";
 import { useApp } from "@/context/app-context";
+import { groupUsersForAccounts } from "@/lib/user-utils";
 import {
   ROLE_LABELS,
   PART_LABELS,
+  USER_PARTS_ORDERED,
+  USER_ROLES_ORDERED,
   type User,
   type UserRole,
   type UserPart,
@@ -86,6 +89,8 @@ export function AccountManagement() {
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
   const isMaster = canMasterManageUsers();
+  const groupedUsers = useMemo(() => groupUsersForAccounts(users), [users]);
+  const tableColSpan = isMaster ? 7 : 6;
 
   useEffect(() => {
     if (editOpen && editingUser) {
@@ -153,6 +158,82 @@ export function AccountManagement() {
     return true;
   };
 
+  const renderUserRow = (user: User) => (
+    <TableRow key={user.id}>
+      <TableCell className="font-medium">{user.name}</TableCell>
+      <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+      <TableCell>
+        <Badge variant="outline">{PART_LABELS[user.part]}</Badge>
+      </TableCell>
+      <TableCell>
+        <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
+      </TableCell>
+      <TableCell>
+        <Select
+          value={user.part}
+          onValueChange={(v) => updateUserPart(user.id, v as UserPart)}
+        >
+          <SelectTrigger className="h-8 w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {USER_PARTS_ORDERED.map((part) => (
+              <SelectItem key={part} value={part}>
+                {PART_LABELS[part]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <Select
+          value={user.role}
+          onValueChange={(v) => updateUserRole(user.id, v as UserRole)}
+        >
+          <SelectTrigger className="h-8 w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {USER_ROLES_ORDERED.map((role) => (
+              <SelectItem key={role} value={role}>
+                {ROLE_LABELS[role]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      {isMaster && (
+        <TableCell>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => openEdit(user)}
+              title="계정 수정"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => openDelete(user)}
+              disabled={!canDeleteUser(user)}
+              title={
+                user.id === currentUser?.id
+                  ? "본인 계정은 삭제할 수 없습니다"
+                  : "계정 삭제"
+              }
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </TableCell>
+      )}
+    </TableRow>
+  );
+
   return (
     <div className="page-stack">
       <PageHeader
@@ -189,90 +270,21 @@ export function AccountManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {user.email}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{PART_LABELS[user.part]}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={user.part}
-                      onValueChange={(v) =>
-                        updateUserPart(user.id, v as UserPart)
-                      }
+              {groupedUsers.map((group) => (
+                <Fragment key={group.key}>
+                  <TableRow className="bg-muted/35 hover:bg-muted/35">
+                    <TableCell
+                      colSpan={tableColSpan}
+                      className="py-2 text-sm font-semibold text-foreground"
                     >
-                      <SelectTrigger className="h-8 w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.keys(PART_LABELS) as UserPart[]).map(
-                          (part) => (
-                            <SelectItem key={part} value={part}>
-                              {PART_LABELS[part]}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={user.role}
-                      onValueChange={(v) =>
-                        updateUserRole(user.id, v as UserRole)
-                      }
-                    >
-                      <SelectTrigger className="h-8 w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.keys(ROLE_LABELS) as UserRole[]).map(
-                          (role) => (
-                            <SelectItem key={role} value={role}>
-                              {ROLE_LABELS[role]}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  {isMaster && (
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => openEdit(user)}
-                          title="계정 수정"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => openDelete(user)}
-                          disabled={!canDeleteUser(user)}
-                          title={
-                            user.id === currentUser?.id
-                              ? "본인 계정은 삭제할 수 없습니다"
-                              : "계정 삭제"
-                          }
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                      {group.label}
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        {group.users.length}명
+                      </span>
                     </TableCell>
-                  )}
-                </TableRow>
+                  </TableRow>
+                  {group.users.map((user) => renderUserRow(user))}
+                </Fragment>
               ))}
             </TableBody>
           </Table>
@@ -336,7 +348,7 @@ export function AccountManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(Object.keys(PART_LABELS) as UserPart[]).map((part) => (
+                      {USER_PARTS_ORDERED.map((part) => (
                         <SelectItem key={part} value={part}>
                           {PART_LABELS[part]}
                         </SelectItem>
@@ -355,7 +367,7 @@ export function AccountManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
+                      {USER_ROLES_ORDERED.map((role) => (
                         <SelectItem key={role} value={role}>
                           {ROLE_LABELS[role]}
                         </SelectItem>
@@ -449,7 +461,7 @@ export function AccountManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(Object.keys(PART_LABELS) as UserPart[]).map((part) => (
+                      {USER_PARTS_ORDERED.map((part) => (
                         <SelectItem key={part} value={part}>
                           {PART_LABELS[part]}
                         </SelectItem>
@@ -468,7 +480,7 @@ export function AccountManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
+                      {USER_ROLES_ORDERED.map((role) => (
                         <SelectItem key={role} value={role}>
                           {ROLE_LABELS[role]}
                         </SelectItem>

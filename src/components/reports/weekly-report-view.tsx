@@ -18,6 +18,7 @@ import {
   type ReportTaskView,
   type WeeklyTask,
   type Project,
+  type WorkPart,
 } from "@/types";
 import { GlobalProjectFilter } from "@/components/shared/global-project-filter";
 import { YearFilterSelect } from "@/components/shared/year-filter-select";
@@ -336,6 +337,7 @@ function getTaskYears(tasks: WeeklyTask[]): number[] {
 type DraftRow = {
   key: string;
   projectId: string;
+  part: WorkPart;
   startDate: string;
   endDate: string;
   content: string;
@@ -357,11 +359,13 @@ function getDefaultDatesForView(
 
 function createDraftRow(
   startDate: string,
-  endDate: string
+  endDate: string,
+  part: WorkPart = "기획"
 ): DraftRow {
   return {
     key: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     projectId: "",
+    part,
     startDate,
     endDate,
     content: "",
@@ -391,28 +395,33 @@ function WeeklyTaskSection({
   const [taskView, setTaskView] = useState<ReportTaskView>("THIS_WEEK");
   const defaultDates = getDefaultDatesForView(reportWeekStart, "THIS_WEEK");
   const [drafts, setDrafts] = useState<DraftRow[]>(() => [
-    createDraftRow(defaultDates.startDate, defaultDates.endDate),
+    createDraftRow(defaultDates.startDate, defaultDates.endDate, "기획"),
   ]);
   const [savedFlash, setSavedFlash] = useState(false);
 
-  useEffect(() => {
-    const dates = getDefaultDatesForView(reportWeekStart, taskView);
-    setDrafts([createDraftRow(dates.startDate, dates.endDate)]);
-    setSavedFlash(false);
-  }, [taskView, reportWeekStart]);
-
-  const workPart =
+  const fixedWorkPart =
     variant === "member" && currentUser
       ? USER_PART_TO_WORK[currentUser.part]
       : undefined;
+  const canPickPart =
+    variant === "member" &&
+    currentUser?.role === "LEADER" &&
+    !fixedWorkPart;
+  const defaultDraftPart = fixedWorkPart ?? "기획";
+
+  useEffect(() => {
+    const dates = getDefaultDatesForView(reportWeekStart, taskView);
+    setDrafts([createDraftRow(dates.startDate, dates.endDate, defaultDraftPart)]);
+    setSavedFlash(false);
+  }, [taskView, reportWeekStart, defaultDraftPart]);
 
   if (variant === "member") {
     if (!currentUser) return null;
-    if (!workPart) {
+    if (!fixedWorkPart && currentUser.role !== "LEADER") {
       return (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            팀원 업무 작성은 팀원 계정으로 로그인해 주세요.
+            업무 작성은 기획·디자인·퍼블리싱 파트 또는 팀장 계정으로 로그인해 주세요.
           </CardContent>
         </Card>
       );
@@ -426,7 +435,7 @@ function WeeklyTaskSection({
     taskView === "NEXT_WEEK" ? "NEXT_WEEK" : "THIS_WEEK";
 
   const validDrafts = drafts.filter(
-    (r) => r.projectId && r.content.trim() && r.startDate && r.endDate
+    (r) => r.projectId && r.content.trim() && r.startDate && r.endDate && r.part
   );
 
   const updateDraft = (key: string, patch: Partial<DraftRow>) => {
@@ -439,7 +448,7 @@ function WeeklyTaskSection({
     const dates = getDefaultDatesForView(reportWeekStart, taskView);
     setDrafts((prev) => [
       ...prev,
-      createDraftRow(dates.startDate, dates.endDate),
+      createDraftRow(dates.startDate, dates.endDate, defaultDraftPart),
     ]);
   };
 
@@ -450,13 +459,13 @@ function WeeklyTaskSection({
   };
 
   const handleSave = () => {
-    if (!canWrite || !currentUser || !workPart || validDrafts.length === 0)
-      return;
+    if (!canWrite || !currentUser || validDrafts.length === 0) return;
     for (const row of validDrafts) {
+      const part = fixedWorkPart ?? row.part;
       addWeeklyTask({
         projectId: row.projectId,
         userId: currentUser.id,
-        part: workPart,
+        part,
         taskType: taskTypeForSave,
         startDate: row.startDate,
         endDate: row.endDate,
@@ -466,7 +475,7 @@ function WeeklyTaskSection({
       });
     }
     const dates = getDefaultDatesForView(reportWeekStart, taskView);
-    setDrafts([createDraftRow(dates.startDate, dates.endDate)]);
+    setDrafts([createDraftRow(dates.startDate, dates.endDate, defaultDraftPart)]);
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 2000);
   };
@@ -485,6 +494,11 @@ function WeeklyTaskSection({
         onValueChange={(v) => setTaskView(v as ReportTaskView)}
       >
         <CardHeader className="border-b border-border/60 pb-3">
+          {variant === "member" && (
+            <CardTitle className="mb-2 text-base font-semibold">
+              {currentUser?.role === "LEADER" ? "팀장 업무 작성" : "내 업무 작성"}
+            </CardTitle>
+          )}
           <ReportTaskTabsList
             showCounts={variant === "admin"}
             counts={tabCounts}
@@ -547,6 +561,25 @@ function WeeklyTaskSection({
                           ))}
                         </SelectContent>
                       </Select>
+                      {canPickPart && (
+                        <Select
+                          value={row.part}
+                          onValueChange={(v) =>
+                            updateDraft(row.key, { part: v as WorkPart })
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-[88px] shrink-0 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {WORK_PARTS.map((part) => (
+                              <SelectItem key={part} value={part} className="text-xs">
+                                {part}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                       <Input
                         type="date"
                         value={row.startDate}
@@ -786,7 +819,8 @@ export function WeeklyReportView() {
     if (isWeekInYear(next, selectedYear)) setReportWeekStart(next);
   };
 
-  const isMember = currentUser?.role === "MEMBER";
+  const canWriteOwnWeeklyTasks =
+    currentUser?.role === "MEMBER" || currentUser?.role === "LEADER";
 
   return (
     <div className={cn("page-stack", meetingMode && "max-w-none")}>
@@ -817,9 +851,9 @@ export function WeeklyReportView() {
         )}
       </PageHeader>
 
-      {!isMember && canViewAllReports() && (
+      {currentUser?.role === "MASTER" && canViewAllReports() && (
         <p className="rounded-lg border border-violet-200/80 bg-violet-50/50 px-4 py-2.5 text-xs text-violet-900">
-          관리자·팀장은 전체 조회 화면입니다. 업무 작성은 팀원 계정으로
+          Master는 전체 조회 화면입니다. 업무 작성은 팀장·팀원 계정으로
           로그인하세요.
         </p>
       )}
@@ -833,7 +867,7 @@ export function WeeklyReportView() {
         onNextWeek={handleNextWeek}
       />
 
-      {isMember && !meetingMode && (
+      {canWriteOwnWeeklyTasks && !meetingMode && (
         <WeeklyTaskSection
           variant="member"
           yearProjects={yearProjects}
