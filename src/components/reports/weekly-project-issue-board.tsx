@@ -6,6 +6,7 @@ import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useApp } from "@/context/app-context";
 import { ProjectStatusBadge } from "@/components/shared/project-status-badge";
+import { ProjectCodeNameStack } from "@/components/shared/project-select";
 import { ProjectPmCell, ProjectAssigneeCell } from "@/components/shared/project-pm-cell";
 import { formatRemarkLine } from "@/components/issues/remark-components";
 import { IssueStatusEditor } from "@/components/issues/issue-components";
@@ -277,8 +278,7 @@ export function WeeklyProjectIssueBoard({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="h-11 px-4 font-semibold">코드</TableHead>
-                <TableHead className="min-w-[160px] px-4 font-semibold">
+                <TableHead className="min-w-[148px] px-4 font-semibold">
                   프로젝트
                 </TableHead>
                 <TableHead className="px-4 font-semibold">PM</TableHead>
@@ -298,7 +298,7 @@ export function WeeklyProjectIssueBoard({
               {sortedProjects.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={6}
                     className="px-4 py-12 text-center text-sm text-muted-foreground"
                   >
                     {selectedYear}년에 표시할 프로젝트가 없습니다
@@ -317,11 +317,11 @@ export function WeeklyProjectIssueBoard({
 
                 return (
                   <TableRow key={project.id} className="align-top">
-                    <TableCell className="whitespace-normal px-3 py-2 align-top font-mono text-xs font-bold text-primary">
-                      {project.code}
-                    </TableCell>
-                    <TableCell className="whitespace-normal px-3 py-2 align-top text-sm font-medium">
-                      {project.name}
+                    <TableCell className="whitespace-normal px-3 py-2 align-top">
+                      <ProjectCodeNameStack
+                        code={project.code}
+                        name={project.name}
+                      />
                     </TableCell>
                     <TableCell className="whitespace-normal px-3 py-2 align-top">
                       <ProjectPmCell project={project} />

@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Plus, Presentation, Trash2, ClipboardList, Save } from "lucide-react";
 import { format, addWeeks, subWeeks } from "date-fns";
 import { PageHeader } from "@/components/shared/page-header";
+import { ProjectCodeNameStack } from "@/components/shared/project-select";
 import { useApp } from "@/context/app-context";
 import {
   WORK_PARTS,
@@ -164,7 +165,7 @@ function MeetingPartProjectTable({ tasks }: { tasks: WeeklyTask[] }) {
                       <p className="font-mono text-sm font-bold text-primary">
                         {project?.code}
                       </p>
-                      <p className="text-[11px] leading-snug text-muted-foreground">
+                      <p className="text-sm font-medium leading-snug text-foreground">
                         {project?.name}
                       </p>
                       <Badge variant="secondary" className="mt-1 font-mono text-[10px]">
@@ -246,7 +247,7 @@ function TaskTable({
         <TableHeader>
           <TableRow className="bg-muted/30">
             {showUser && <TableHead className="w-20">담당</TableHead>}
-            <TableHead className="w-24">프로젝트</TableHead>
+            <TableHead className="min-w-[148px]">프로젝트</TableHead>
             <TableHead className="w-32">기간</TableHead>
             <TableHead className="w-14">구분</TableHead>
             <TableHead className="min-w-[280px]">업무내용</TableHead>
@@ -266,9 +267,14 @@ function TaskTable({
                   </TableCell>
                 )}
                 <TableCell>
-                  <Badge variant="outline" className="font-mono text-[10px]">
-                    {project?.code}
-                  </Badge>
+                  {project ? (
+                    <ProjectCodeNameStack
+                      code={project.code}
+                      name={project.name}
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                   {task.startDate} ~ {task.endDate}
@@ -541,22 +547,22 @@ function WeeklyTaskSection({
                       className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-background/80 p-2"
                     >
                       <Select
-                        value={row.projectId}
+                        value={row.projectId || undefined}
                         onValueChange={(v) =>
                           updateDraft(row.key, { projectId: v })
                         }
                       >
-                        <SelectTrigger className="h-8 w-[120px] shrink-0 text-xs">
+                        <SelectTrigger className="h-8 min-w-[168px] max-w-[240px] shrink-0 text-xs">
                           <SelectValue placeholder="프로젝트" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-w-sm">
                           {yearProjects.map((p) => (
                             <SelectItem
                               key={p.id}
                               value={p.id}
                               className="text-xs"
                             >
-                              {p.code}
+                              {p.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
