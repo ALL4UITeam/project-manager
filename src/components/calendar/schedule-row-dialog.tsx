@@ -63,15 +63,29 @@ export function ScheduleRowDialog({
   projectId,
   editing,
   defaultService,
+  rowsForOrder,
+  onAddRow,
+  onUpdateRow,
+  onDeleteRow,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
   editing?: ScheduleRow | null;
   defaultService?: string;
+  rowsForOrder?: ScheduleRow[];
+  onAddRow?: (row: Omit<ScheduleRow, "id">) => void;
+  onUpdateRow?: (id: string, data: Partial<ScheduleRow>) => void;
+  onDeleteRow?: (id: string) => void;
 }) {
-  const { scheduleRows, addScheduleRow, updateScheduleRow, deleteScheduleRow } =
-    useApp();
+  const {
+    scheduleRows,
+    addScheduleRow,
+    updateScheduleRow,
+    deleteScheduleRow,
+  } = useApp();
+  const orderRows = rowsForOrder ?? scheduleRows;
+  const useDraftHandlers = !!onAddRow && !!onUpdateRow && !!onDeleteRow;
   const [form, setForm] = useState<FormState>(emptyForm());
 
   useEffect(() => {
@@ -95,10 +109,16 @@ export function ScheduleRowDialog({
       startDate: form.startDate,
       endDate: form.endDate,
       remarks: form.remarks.trim() || undefined,
-      sortOrder: editing?.sortOrder ?? scheduleRows.length,
+      sortOrder: editing?.sortOrder ?? orderRows.length,
     };
 
-    if (editing) {
+    if (useDraftHandlers) {
+      if (editing) {
+        onUpdateRow(editing.id, payload);
+      } else {
+        onAddRow(payload);
+      }
+    } else if (editing) {
       updateScheduleRow(editing.id, payload);
     } else {
       addScheduleRow(payload);
@@ -108,7 +128,11 @@ export function ScheduleRowDialog({
 
   const handleDelete = () => {
     if (!editing) return;
-    deleteScheduleRow(editing.id);
+    if (useDraftHandlers) {
+      onDeleteRow(editing.id);
+    } else {
+      deleteScheduleRow(editing.id);
+    }
     onOpenChange(false);
   };
 
@@ -230,7 +254,7 @@ export function ScheduleRowDialog({
                 form.startDate > form.endDate
               }
             >
-              {editing ? "저장" : "등록"}
+              {useDraftHandlers ? "적용" : editing ? "저장" : "등록"}
             </Button>
           </div>
         </DialogFooter>

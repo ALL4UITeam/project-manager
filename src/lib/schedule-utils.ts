@@ -1,19 +1,21 @@
 import {
+  addDays,
   addMonths,
+  addWeeks,
   eachMonthOfInterval,
   endOfMonth,
   format,
-  getDaysInMonth,
-  isBefore,
   isAfter,
+  isBefore,
   max,
   min,
   parseISO,
   startOfMonth,
 } from "date-fns";
 import { ko } from "date-fns/locale";
-import type { ScheduleRow, WorkPart } from "@/types";
+import type { ScheduleRow } from "@/types";
 import { WORK_PARTS } from "@/types";
+import { getWeekStart } from "@/lib/week-utils";
 
 export interface ScheduleWeekColumn {
   id: string;
@@ -25,22 +27,28 @@ export interface ScheduleWeekColumn {
   end: Date;
 }
 
-/** 월 내 W1~W4(필요 시 W5) 구간 — Excel 일정표와 동일한 패턴 */
+/** 해당 월에 월요일이 속한 주만 W1~Wn (실제 달력 기준, 월간 4~5주) */
 export function getMonthWeekRanges(year: number, month: number) {
-  const daysInMonth = getDaysInMonth(new Date(year, month - 1));
-  const ranges: { weekInMonth: number; startDay: number; endDay: number }[] = [
-    { weekInMonth: 1, startDay: 1, endDay: Math.min(7, daysInMonth) },
-    { weekInMonth: 2, startDay: 8, endDay: Math.min(14, daysInMonth) },
-    { weekInMonth: 3, startDay: 15, endDay: Math.min(21, daysInMonth) },
-    { weekInMonth: 4, startDay: 22, endDay: Math.min(28, daysInMonth) },
-  ];
-  if (daysInMonth > 28) {
-    ranges.push({
-      weekInMonth: 5,
-      startDay: 29,
-      endDay: daysInMonth,
-    });
+  const monthStart = startOfMonth(new Date(year, month - 1));
+  const monthEnd = endOfMonth(monthStart);
+  const ranges: { weekInMonth: number; start: Date; end: Date }[] = [];
+
+  let monday = getWeekStart(monthStart);
+  while (monday < monthStart) {
+    monday = addWeeks(monday, 1);
   }
+
+  let weekInMonth = 1;
+  while (monday <= monthEnd) {
+    ranges.push({
+      weekInMonth,
+      start: monday,
+      end: addDays(monday, 6),
+    });
+    weekInMonth++;
+    monday = addWeeks(monday, 1);
+  }
+
   return ranges;
 }
 
@@ -59,10 +67,7 @@ export function buildScheduleWeekColumns(
     const monthLabel = format(month, "M월", { locale: ko });
 
     for (const range of getMonthWeekRanges(year, monthNum)) {
-      const colStart = new Date(year, monthNum - 1, range.startDay);
-      const colEnd = new Date(year, monthNum - 1, range.endDay);
-
-      if (isBefore(colEnd, rangeStart) || isAfter(colStart, rangeEnd)) continue;
+      if (isBefore(range.end, rangeStart) || isAfter(range.start, rangeEnd)) continue;
 
       columns.push({
         id: `${monthKey}-W${range.weekInMonth}`,
@@ -70,8 +75,8 @@ export function buildScheduleWeekColumns(
         monthLabel,
         weekInMonth: range.weekInMonth,
         weekLabel: `W${range.weekInMonth}`,
-        start: max([colStart, rangeStart]),
-        end: min([colEnd, rangeEnd]),
+        start: max([range.start, rangeStart]),
+        end: min([range.end, rangeEnd]),
       });
     }
   }

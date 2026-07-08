@@ -9,10 +9,6 @@ import {
   mockMilestones,
   mockMeetingNotes,
 } from "../src/data/mock-data";
-import {
-  mockScheduleRows,
-  mockScheduleNotes,
-} from "../src/data/mock-schedule";
 
 const prisma = new PrismaClient();
 
@@ -126,35 +122,6 @@ async function main() {
         description: m.description ?? null,
         isShared: m.isShared,
         isTeamAdmin: m.isTeamAdmin ?? false,
-      })),
-    });
-  }
-
-  if (mockScheduleRows.length) {
-    await prisma.scheduleRow.createMany({
-      data: mockScheduleRows.map((r) => ({
-        id: r.id,
-        projectId: r.projectId,
-        service: r.service,
-        part: r.part,
-        taskName: r.taskName,
-        startDate: r.startDate,
-        endDate: r.endDate,
-        sortOrder: r.sortOrder,
-        remarks: r.remarks ?? null,
-      })),
-    });
-  }
-
-  if (mockScheduleNotes.length) {
-    await prisma.scheduleNote.createMany({
-      data: mockScheduleNotes.map((n) => ({
-        id: n.id,
-        projectId: n.projectId,
-        date: n.date ?? null,
-        content: n.content,
-        sortOrder: n.sortOrder,
-        isShared: n.isShared ?? false,
       })),
     });
   }

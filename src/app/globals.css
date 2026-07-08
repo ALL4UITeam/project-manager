@@ -121,6 +121,22 @@
   * {
     @apply border-border outline-ring/50;
   }
+  a:where([href]):not([aria-disabled="true"]),
+  button:where(:not(:disabled):not([disabled]):not([aria-disabled="true"])),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="link"],
+  [role="menuitem"]:not([data-disabled]),
+  [role="option"]:not([data-disabled]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  label:where([for]) {
+    cursor: pointer;
+  }
+  button:disabled,
+  button[aria-disabled="true"],
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "kern" 1, "liga" 1;

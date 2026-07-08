@@ -83,6 +83,7 @@ interface AppContextValue {
   updateScheduleRow: (id: string, data: Partial<ScheduleRow>) => void;
   deleteScheduleRow: (id: string) => void;
   getScheduleRowsByProject: (projectId: string) => ScheduleRow[];
+  setScheduleRowsForProject: (projectId: string, rows: ScheduleRow[]) => void;
   applyScheduleTemplate: (
     projectId: string,
     templateId: ScheduleTemplateId,
@@ -420,6 +421,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .filter((r) => r.projectId === projectId)
         .sort((a, b) => a.sortOrder - b.sortOrder),
     [scheduleRows]
+  );
+
+  const setScheduleRowsForProject = useCallback(
+    (projectId: string, rows: ScheduleRow[]) => {
+      setScheduleRows((prev) => [
+        ...prev.filter((row) => row.projectId !== projectId),
+        ...rows,
+      ]);
+    },
+    []
   );
 
   const applyScheduleTemplate = useCallback(
@@ -843,6 +854,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateScheduleRow,
       deleteScheduleRow,
       getScheduleRowsByProject,
+      setScheduleRowsForProject,
       applyScheduleTemplate,
       addScheduleNote,
       updateScheduleNote,
@@ -919,6 +931,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateScheduleRow,
       deleteScheduleRow,
       getScheduleRowsByProject,
+      setScheduleRowsForProject,
       applyScheduleTemplate,
       addScheduleNote,
       updateScheduleNote,

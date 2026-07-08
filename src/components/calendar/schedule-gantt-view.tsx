@@ -6,9 +6,12 @@ import {
   Plus,
   LayoutTemplate,
   Search,
+  Save,
+  RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useApp } from "@/context/app-context";
+import { useScheduleDraft } from "@/hooks/use-schedule-draft";
 import type { ScheduleRow } from "@/types";
 import {
   buildScheduleWeekColumnsForRows,
@@ -31,6 +34,7 @@ import { ScheduleGanttProjectPanel } from "@/components/calendar/schedule-gantt-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -52,9 +56,7 @@ export function ScheduleGanttView() {
     projects,
     getProjectById,
     getScheduleRowsByProject,
-    applyScheduleTemplate,
-    deleteScheduleRow,
-    updateScheduleRow,
+    setScheduleRowsForProject,
     canEditCalendar,
   } = useApp();
 
@@ -75,6 +77,26 @@ export function ScheduleGanttView() {
     () => filterProjectsBySearch(yearProjects, searchQuery),
     [yearProjects, searchQuery]
   );
+
+  const serverRows = useMemo(
+    () =>
+      selectedProjectId ? getScheduleRowsByProject(selectedProjectId) : [],
+    [selectedProjectId, getScheduleRowsByProject]
+  );
+
+  const {
+    draftRows,
+    isDirty,
+    saving,
+    saveMessage,
+    addRow,
+    updateRow,
+    deleteRow,
+    applyTemplate,
+    resetDraft,
+    saveDraft,
+    confirmDiscard,
+  } = useScheduleDraft(selectedProjectId, serverRows, canEdit);
 
   useEffect(() => {
     if (filteredProjects.length === 0) {
@@ -102,10 +124,8 @@ export function ScheduleGanttView() {
 
   const rows = useMemo(() => {
     if (!selectedProjectId) return [];
-    return getScheduleRowsByProject(selectedProjectId).filter((r) =>
-      rowOverlapsYear(r, selectedYear)
-    );
-  }, [selectedProjectId, selectedYear, getScheduleRowsByProject]);
+    return draftRows.filter((r) => rowOverlapsYear(r, selectedYear));
+  }, [selectedProjectId, selectedYear, draftRows]);
 
   const columns = useMemo(
     () => buildScheduleWeekColumnsForRows(rows, selectedYear),
@@ -117,6 +137,12 @@ export function ScheduleGanttView() {
   const [templateAnchor, setTemplateAnchor] = useState(
     format(new Date(), "yyyy-MM-dd")
   );
+
+  const handleProjectChange = (projectId: string) => {
+    if (projectId === selectedProjectId) return;
+    if (!confirmDiscard()) return;
+    setSelectedProjectId(projectId);
+  };
 
   const openCreateRow = () => {
     setEditingRow(null);
@@ -131,18 +157,25 @@ export function ScheduleGanttView() {
   const handleDeleteRow = (row: ScheduleRow) => {
     if (!canEdit) return;
     if (window.confirm(`"${row.taskName}" 일정을 삭제할까요?`)) {
-      deleteScheduleRow(row.id);
+      deleteRow(row.id);
     }
   };
 
   const handleUpdateRemarks = (id: string, remarks: string) => {
     if (!canEdit) return;
-    updateScheduleRow(id, { remarks: remarks || undefined });
+    updateRow(id, { remarks: remarks || undefined });
   };
 
   const handleApplyTemplate = (templateId: ScheduleTemplateId) => {
     if (!selectedProjectId || !canEdit) return;
-    applyScheduleTemplate(selectedProjectId, templateId, templateAnchor);
+    applyTemplate(templateId, templateAnchor);
+  };
+
+  const handleSave = async () => {
+    if (!selectedProjectId) return;
+    await saveDraft((saved) => {
+      setScheduleRowsForProject(selectedProjectId, saved);
+    });
   };
 
   return (
@@ -155,9 +188,33 @@ export function ScheduleGanttView() {
       >
         {canEdit && selectedProjectId && (
           <>
+            {isDirty && (
+              <Badge variant="secondary" className="hidden sm:inline-flex">
+                저장 필요
+              </Badge>
+            )}
+            {isDirty && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetDraft}
+                disabled={saving}
+              >
+                <RotateCcw className="mr-1.5 h-4 w-4" />
+                변경 취소
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!isDirty || saving}
+            >
+              <Save className="mr-1.5 h-4 w-4" />
+              {saving ? "저장 중..." : "저장"}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" disabled={saving}>
                   <LayoutTemplate className="mr-1.5 h-4 w-4" />
                   WBS 템플릿
                 </Button>
@@ -173,13 +230,24 @@ export function ScheduleGanttView() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button size="sm" onClick={openCreateRow}>
+            <Button size="sm" variant="outline" onClick={openCreateRow} disabled={saving}>
               <Plus className="mr-1.5 h-4 w-4" />
               행 추가
             </Button>
           </>
         )}
       </PageHeader>
+
+      {canEdit && selectedProjectId && (isDirty || saveMessage) && (
+        <div className="rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs text-amber-950">
+          {isDirty && (
+            <p>변경 사항이 있습니다. 상단 [저장]을 눌러 DB에 반영하세요.</p>
+          )}
+          {saveMessage && (
+            <p className={isDirty ? "mt-1" : undefined}>{saveMessage}</p>
+          )}
+        </div>
+      )}
 
       <Card className="glass-card border-0">
         <CardContent className="space-y-3 p-3">
@@ -229,7 +297,7 @@ export function ScheduleGanttView() {
               </p>
               <Select
                 value={selectedProjectId}
-                onValueChange={setSelectedProjectId}
+                onValueChange={handleProjectChange}
               >
                 <SelectTrigger className="h-9 w-full max-w-md text-xs">
                   <SelectValue placeholder="프로젝트 선택" />
@@ -287,6 +355,10 @@ export function ScheduleGanttView() {
           onOpenChange={setRowDialogOpen}
           projectId={selectedProjectId}
           editing={editingRow}
+          rowsForOrder={draftRows}
+          onAddRow={addRow}
+          onUpdateRow={updateRow}
+          onDeleteRow={deleteRow}
         />
       )}
     </>
