@@ -171,12 +171,6 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
-
-        <div className="space-y-1.5 text-center font-numeric text-[11px] text-muted-foreground">
-          <p>팀원: changi@all4land.com / member123</p>
-          <p>팀장: ilho@all4land.com / lead123</p>
-          <p>퍼블: seungjun@all4land.com / member123</p>
-        </div>
       </div>
     </div>
   );
