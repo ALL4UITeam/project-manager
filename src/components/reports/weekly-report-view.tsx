@@ -412,8 +412,7 @@ function WeeklyTaskSection({
       return (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            PM/관리자 계정은 상단 Demo에서 MEMBER로 전환하거나, 김찬기 등 팀원
-            계정으로 로그인하세요.
+            팀원 업무 작성은 팀원 계정으로 로그인해 주세요.
           </CardContent>
         </Card>
       );
@@ -788,11 +787,6 @@ export function WeeklyReportView() {
   };
 
   const isMember = currentUser?.role === "MEMBER";
-  const thisWeekCount = filterTasksByReportView(
-    yearTasks,
-    reportWeekStart,
-    "THIS_WEEK"
-  ).length;
 
   return (
     <div className={cn("page-stack", meetingMode && "max-w-none")}>
@@ -800,7 +794,7 @@ export function WeeklyReportView() {
         icon={ClipboardList}
         iconClassName="bg-violet-500/10 text-violet-600 ring-violet-500/15"
         title={`주간 업무 보고 (${selectedYear})`}
-        description={`이번주 이슈 · 실적/계획 · 더미: ${formatWeekRange(reportWeekStart)} 주차 기준`}
+        description={`이번주 이슈 · 실적/계획 · ${formatWeekRange(reportWeekStart)} 주차 기준`}
       >
         <YearFilterSelect
           years={availableYears}
@@ -825,9 +819,8 @@ export function WeeklyReportView() {
 
       {!isMember && canViewAllReports() && (
         <p className="rounded-lg border border-violet-200/80 bg-violet-50/50 px-4 py-2.5 text-xs text-violet-900">
-          전체 조회는 관리자/팀장 화면입니다. 업무 작성은{" "}
-          <strong>MEMBER</strong> 계정(예: 김찬기) 로그인 또는 상단 Demo 역할
-          전환 후 확인하세요. 이번주 실적 더미 {thisWeekCount}건.
+          관리자·팀장은 전체 조회 화면입니다. 업무 작성은 팀원 계정으로
+          로그인하세요.
         </p>
       )}
 

@@ -16,7 +16,7 @@ import {
   PanelLeft,
 } from "lucide-react";
 import { useApp, type MenuKey } from "@/context/app-context";
-import { ROLE_LABELS, PART_LABELS, type UserRole } from "@/types";
+import { ROLE_LABELS, PART_LABELS } from "@/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -28,13 +28,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
 const SIDEBAR_KEY = "a4-sidebar-collapsed";
@@ -185,7 +178,7 @@ export function AppHeader({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { currentUser, logout, switchRole } = useApp();
+  const { currentUser, logout } = useApp();
   if (!currentUser) return null;
 
   const pageTitle =
@@ -217,26 +210,6 @@ export function AppHeader({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <div className="hidden items-center gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-2 py-0.5 md:flex">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Demo
-          </span>
-          <Select
-            value={currentUser.role}
-            onValueChange={(v) => switchRole(v as UserRole)}
-          >
-            <SelectTrigger className="h-7 w-28 border-0 bg-transparent text-xs shadow-none">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
-                <SelectItem key={role} value={role}>
-                  {ROLE_LABELS[role]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

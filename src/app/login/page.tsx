@@ -101,7 +101,7 @@ export default function LoginPage() {
           <CardHeader>
             <CardTitle className="font-display text-lg">로그인</CardTitle>
             <CardDescription>
-              실무 계정으로 로그인하거나 테스트 권한으로 바로 접속하세요.
+              실무 계정으로 로그인하거나 권한별로 바로 접속하세요.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -139,7 +139,7 @@ export default function LoginPage() {
 
             <div className="mt-8">
               <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                빠른 로그인 (테스트)
+                빠른 로그인
               </p>
               <div className="grid grid-cols-2 gap-2.5">
                 {QUICK_ROLES.map((role) => {
