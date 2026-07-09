@@ -20,6 +20,7 @@ async function main() {
       assigneeSecondary: p.assigneeSecondary ?? null,
       scheduleShareToken: p.scheduleShareToken ?? null,
       scheduleLinkShareEnabled: p.scheduleLinkShareEnabled ?? false,
+      isSupportProject: p.isSupportProject ?? false,
       allocatedMdPlanning: p.allocatedMd.기획,
       allocatedMdDesign: p.allocatedMd.디자인,
       allocatedMdPublishing: p.allocatedMd.퍼블리싱,

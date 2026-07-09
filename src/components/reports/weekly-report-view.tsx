@@ -20,6 +20,7 @@ import {
   type WeeklyTask,
   type Project,
   type WorkPart,
+  PROJECT_CATEGORY_LABELS,
 } from "@/types";
 import { GlobalProjectFilter } from "@/components/shared/global-project-filter";
 import { YearFilterSelect } from "@/components/shared/year-filter-select";
@@ -37,6 +38,7 @@ import {
   filterProjectsByYear,
   getDefaultSelectedYear,
   dateInYear,
+  splitTasksByProjectCategory,
 } from "@/lib/project-utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -71,6 +73,104 @@ const STATUS_STYLE: Record<TaskStatus, string> = {
   완료: "bg-slate-100 text-slate-600",
   진행: "bg-emerald-50 text-emerald-700",
 };
+
+function ReportCategoryHeader({
+  label,
+  support = false,
+}: {
+  label: string;
+  support?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "border-b px-4 py-3",
+        support
+          ? "border-orange-200 bg-orange-50"
+          : "border-border/60 bg-muted/25"
+      )}
+    >
+      <h3
+        className={cn(
+          "text-base font-bold tracking-tight",
+          support ? "text-orange-700" : "text-foreground"
+        )}
+      >
+        {label}
+      </h3>
+    </div>
+  );
+}
+
+function AdminCategoryTaskViews({ tasks }: { tasks: WeeklyTask[] }) {
+  const { projects } = useApp();
+  const { operation, support } = splitTasksByProjectCategory(tasks, projects);
+
+  return (
+    <div className="divide-y divide-border/50">
+      <div>
+        <ReportCategoryHeader label={PROJECT_CATEGORY_LABELS.operation} />
+        <TaskTable tasks={operation} showUser />
+      </div>
+      <div>
+        <ReportCategoryHeader label={PROJECT_CATEGORY_LABELS.support} support />
+        <TaskTable tasks={support} showUser />
+      </div>
+    </div>
+  );
+}
+
+function MeetingCategorySection({
+  tasks,
+  support = false,
+}: {
+  tasks: WeeklyTask[];
+  support?: boolean;
+}) {
+  const label = support
+    ? PROJECT_CATEGORY_LABELS.support
+    : PROJECT_CATEGORY_LABELS.operation;
+
+  if (tasks.length === 0) {
+    return (
+      <div className="space-y-0 overflow-hidden rounded-xl border border-border/60 shadow-sm">
+        <ReportCategoryHeader label={label} support={support} />
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          등록된 업무가 없습니다
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <ReportCategoryHeader label={label} support={support} />
+      {WORK_PARTS.map((part) => {
+        const partTasks = tasks.filter((t) => t.part === part);
+        if (partTasks.length === 0) return null;
+        const partMD = partTasks.reduce((s, t) => s + t.md, 0);
+        return (
+          <Card key={part} className="border-0 shadow-md">
+            <CardHeader className="border-b bg-muted/20 pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+                  {part.charAt(0)}
+                </span>
+                [{part}] 파트
+                <Badge variant="secondary" className="ml-auto">
+                  {partTasks.length}건 · M/D {partMD.toFixed(2)}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <MeetingPartProjectTable tasks={partTasks} />
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
 
 function buildProjectGroupedRows(
   tasks: WeeklyTask[],
@@ -686,16 +786,20 @@ function WeeklyTaskSection({
                 </div>
               )}
 
-              <TaskTable
-                tasks={displayTasks}
-                showUser={variant === "admin"}
-                editable={
-                  writable &&
-                  !!currentUser &&
-                  canEditTask(currentUser.id)
-                }
-                onDelete={deleteWeeklyTask}
-              />
+              {variant === "admin" ? (
+                <AdminCategoryTaskViews tasks={displayTasks} />
+              ) : (
+                <TaskTable
+                  tasks={displayTasks}
+                  showUser={false}
+                  editable={
+                    writable &&
+                    !!currentUser &&
+                    canEditTask(currentUser.id)
+                  }
+                  onDelete={deleteWeeklyTask}
+                />
+              )}
             </TabsContent>
           );
         })}
@@ -711,15 +815,20 @@ function MeetingTaskSections({
   yearTasks: WeeklyTask[];
   reportWeekStart: Date;
 }) {
+  const { projects } = useApp();
   const [activeView, setActiveView] = useState<ReportTaskView>("THIS_WEEK");
   const tasksForView = filterTasksByReportView(
     yearTasks,
     reportWeekStart,
     activeView
   );
+  const { operation, support } = splitTasksByProjectCategory(
+    tasksForView,
+    projects
+  );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs
           value={activeView}
@@ -741,29 +850,8 @@ function MeetingTaskSections({
         </Badge>
       </div>
 
-      {WORK_PARTS.map((part) => {
-        const partTasks = tasksForView.filter((t) => t.part === part);
-        if (partTasks.length === 0) return null;
-        const partMD = partTasks.reduce((s, t) => s + t.md, 0);
-        return (
-          <Card key={part} className="border-0 shadow-md">
-            <CardHeader className="border-b bg-muted/20 pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-                  {part.charAt(0)}
-                </span>
-                [{part}] 파트
-                <Badge variant="secondary" className="ml-auto">
-                  {partTasks.length}건 · M/D {partMD.toFixed(2)}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <MeetingPartProjectTable tasks={partTasks} />
-            </CardContent>
-          </Card>
-        );
-      })}
+      <MeetingCategorySection tasks={operation} />
+      <MeetingCategorySection tasks={support} support />
     </div>
   );
 }

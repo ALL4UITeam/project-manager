@@ -53,6 +53,7 @@ export function toProject(row: DbProject): Project {
     assigneeSecondary: row.assigneeSecondary ?? undefined,
     scheduleShareToken: row.scheduleShareToken ?? undefined,
     scheduleLinkShareEnabled: row.scheduleLinkShareEnabled,
+    isSupportProject: row.isSupportProject,
     allocatedMd: {
       기획: dec(row.allocatedMdPlanning),
       디자인: dec(row.allocatedMdDesign),
@@ -190,6 +191,7 @@ export function projectToDb(data: Omit<Project, "id">) {
     assigneeSecondary: data.assigneeSecondary ?? null,
     scheduleShareToken: data.scheduleShareToken ?? null,
     scheduleLinkShareEnabled: data.scheduleLinkShareEnabled ?? false,
+    isSupportProject: data.isSupportProject ?? false,
     allocatedMdPlanning: data.allocatedMd.기획,
     allocatedMdDesign: data.allocatedMd.디자인,
     allocatedMdPublishing: data.allocatedMd.퍼블리싱,
@@ -212,6 +214,8 @@ export function projectPartialToDb(data: Partial<Project>) {
     out.scheduleShareToken = data.scheduleShareToken ?? null;
   if (data.scheduleLinkShareEnabled !== undefined)
     out.scheduleLinkShareEnabled = data.scheduleLinkShareEnabled;
+  if (data.isSupportProject !== undefined)
+    out.isSupportProject = data.isSupportProject;
   if (data.allocatedMd !== undefined) {
     out.allocatedMdPlanning = data.allocatedMd.기획;
     out.allocatedMdDesign = data.allocatedMd.디자인;

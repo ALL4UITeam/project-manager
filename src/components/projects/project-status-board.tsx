@@ -34,6 +34,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -73,6 +75,7 @@ const emptyForm: ProjectForm = {
   status: "진행",
   assigneePrimary: "",
   assigneeSecondary: "",
+  isSupportProject: false,
   allocatedMd: { ...DEFAULT_ALLOCATED_MD },
 };
 
@@ -147,6 +150,23 @@ function ProjectFormDialog({
                 placeholder="프로젝트 이름"
               />
             </FormField>
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border/70 bg-muted/15 px-3 py-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="is-support-project" className="text-sm font-medium">
+                  프로젝트 지원 및 전사
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  체크 시 주간 보고에서 실무 프로젝트와 분리하여 표시됩니다.
+                </p>
+              </div>
+              <Switch
+                id="is-support-project"
+                checked={form.isSupportProject ?? false}
+                onCheckedChange={(checked) =>
+                  setForm({ ...form, isSupportProject: checked })
+                }
+              />
+            </div>
           </FormDialogSection>
 
           <FormDialogSection title="담당 · PM">

@@ -52,6 +52,8 @@ model Project {
   assigneeSecondary        String?  @map("assignee_secondary")
   scheduleShareToken       String?  @map("schedule_share_token")
   scheduleLinkShareEnabled Boolean  @default(false) @map("schedule_link_share_enabled")
+  /** 프로젝트 지원 및 전사 — 주간 보고에서 실무와 분리 표시 */
+  isSupportProject         Boolean  @default(false) @map("is_support_project")
   allocatedMdPlanning      Decimal  @default(0) @map("allocated_md_planning") @db.Decimal(8, 2)
   allocatedMdDesign        Decimal  @default(0) @map("allocated_md_design") @db.Decimal(8, 2)
   allocatedMdPublishing    Decimal  @default(0) @map("allocated_md_publishing") @db.Decimal(8, 2)

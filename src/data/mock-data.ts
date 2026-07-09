@@ -230,6 +230,7 @@ export const mockProjects: Project[] = [
     status: "진행",
     assigneePrimary: "김일호",
     assigneeSecondary: "오승준",
+    isSupportProject: true,
     allocatedMd: allocated(0, 0, 0, 0),
   },
   {
@@ -241,6 +242,7 @@ export const mockProjects: Project[] = [
     endDate: "2025-06-30",
     status: "진행",
     assigneePrimary: "김일호",
+    isSupportProject: true,
     allocatedMd: allocated(0, 0, 0, 0),
   },
   {

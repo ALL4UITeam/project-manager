@@ -71,9 +71,16 @@ export interface Project {
   scheduleShareToken?: string;
   /** 링크 공유 활성화 — 프로젝트 WBS 일정표 전체 */
   scheduleLinkShareEnabled?: boolean;
+  /** 프로젝트 지원 및 전사 (체크 시 주간 보고에서 실무와 분리) */
+  isSupportProject?: boolean;
   /** 파트별 수주(배정) M/D */
   allocatedMd: ProjectAllocatedMd;
 }
+
+export const PROJECT_CATEGORY_LABELS = {
+  operation: "프로젝트 수행",
+  support: "프로젝트 지원 및 전사",
+} as const;
 
 export interface ProjectIssue {
   id: string;

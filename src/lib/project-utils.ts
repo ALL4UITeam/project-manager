@@ -1,4 +1,4 @@
-import type { Project, ProjectStatus } from "@/types";
+import type { Project, ProjectStatus, WeeklyTask } from "@/types";
 
 const STATUS_ORDER: Record<ProjectStatus, number> = {
   진행: 0,
@@ -60,4 +60,17 @@ export function filterProjectsBySearch(
     (p) =>
       p.code.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
   );
+}
+
+export function splitTasksByProjectCategory(
+  tasks: WeeklyTask[],
+  projects: Project[]
+): { operation: WeeklyTask[]; support: WeeklyTask[] } {
+  const supportIds = new Set(
+    projects.filter((p) => p.isSupportProject).map((p) => p.id)
+  );
+  return {
+    operation: tasks.filter((t) => !supportIds.has(t.projectId)),
+    support: tasks.filter((t) => supportIds.has(t.projectId)),
+  };
 }
