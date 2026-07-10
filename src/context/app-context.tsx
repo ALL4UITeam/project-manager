@@ -69,8 +69,8 @@ interface AppContextValue {
   loginAs: (userId: string) => void;
   logout: () => void;
   switchRole: (role: UserRole) => void;
-  addProject: (project: Omit<Project, "id">) => void;
-  updateProject: (id: string, data: Partial<Project>) => void;
+  addProject: (project: Omit<Project, "id">) => Promise<Project>;
+  updateProject: (id: string, data: Partial<Project>) => Promise<Project>;
   deleteProject: (id: string) => void;
   addWeeklyTask: (task: Omit<WeeklyTask, "id">) => void;
   updateWeeklyTask: (id: string, data: Partial<WeeklyTask>) => void;
@@ -292,22 +292,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...project,
       allocatedMd: normalizeAllocatedMd(project.allocatedMd),
     };
-    void apiFetch<Project>("/api/projects", {
+    return apiFetch<Project>("/api/projects", {
       method: "POST",
       body: JSON.stringify(payload),
-    }).then((created) => setProjects((prev) => [...prev, created]));
+    }).then((created) => {
+      setProjects((prev) => [...prev, created]);
+      return created;
+    });
   }, []);
 
   const updateProject = useCallback((id: string, data: Partial<Project>) => {
-    setProjects((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...data } : p))
-    );
-    void apiFetch<Project>(`/api/projects/${id}`, {
+    return apiFetch<Project>(`/api/projects/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
-    }).then((updated) =>
-      setProjects((prev) => prev.map((p) => (p.id === id ? updated : p)))
-    );
+    }).then((updated) => {
+      setProjects((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      return updated;
+    });
   }, []);
 
   const deleteProject = useCallback((id: string) => {

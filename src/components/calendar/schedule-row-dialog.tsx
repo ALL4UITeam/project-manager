@@ -1,25 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CalendarRange, Trash2 } from "lucide-react";
-import type { ScheduleRow, WorkPart } from "@/types";
-import { WORK_PARTS } from "@/types";
-import { useApp } from "@/context/app-context";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogBody,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   FormDialogHeader,
   FormDialogSection,
   FormField,
   formInputClassName,
 } from "@/components/shared/form-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,6 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useApp } from "@/context/app-context";
+import type { ScheduleRow, WorkPart } from "@/types";
+import { WORK_PARTS } from "@/types";
+import { CalendarRange, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 type FormState = {
   service: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, AlertCircle, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useApp } from "@/context/app-context";
@@ -216,6 +216,7 @@ export function WeeklyProjectIssueBoard({
   const [addingRemarkProjectId, setAddingRemarkProjectId] = useState<
     string | null
   >(null);
+  const [expanded, setExpanded] = useState(true);
 
   const weekStartISO = format(weekStart, "yyyy-MM-dd");
   const defaultIssueDate = format(new Date(), "yyyy-MM-dd");
@@ -230,26 +231,42 @@ export function WeeklyProjectIssueBoard({
     <Card className="border-primary/15 shadow-sm">
       <CardHeader className="space-y-3 border-b bg-primary/[0.03]">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10">
-                <AlertCircle className="h-4 w-4 text-orange-500" />
-              </span>
-              이번주 이슈사항
-            </CardTitle>
-            <div className="flex flex-wrap items-center gap-2 pl-10">
-              <CardDescription className="m-0 text-xs">
-                {formatWeekRange(weekStart)} · 진행 이슈 유지 · 완료는 변경 후 이번 주에
-                표시
-              </CardDescription>
-              <Badge variant="secondary" className="h-6 text-[11px]">
-                이슈 {reportIssues.length}
-              </Badge>
-              <Badge variant="outline" className="h-6 text-[11px]">
-                비고 {weekRemarks.length}
-              </Badge>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex min-w-0 flex-1 items-start gap-2 rounded-lg text-left transition-colors hover:bg-muted/30 -m-1 p-1"
+            aria-expanded={expanded ? "true" : "false"}
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500/10">
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+            </span>
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className="text-base">이번주 이슈사항</CardTitle>
+                <Badge variant="secondary" className="h-6 text-[11px]">
+                  프로젝트 {sortedProjects.length}
+                </Badge>
+                <ChevronDown
+                  className={cn(
+                    "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+                    expanded && "rotate-180"
+                  )}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <CardDescription className="m-0 text-xs">
+                  {formatWeekRange(weekStart)} · 진행 이슈 유지 · 완료는 변경 후 이번 주에
+                  표시
+                </CardDescription>
+                <Badge variant="secondary" className="h-6 text-[11px]">
+                  이슈 {reportIssues.length}
+                </Badge>
+                <Badge variant="outline" className="h-6 text-[11px]">
+                  비고 {weekRemarks.length}
+                </Badge>
+              </div>
             </div>
-          </div>
+          </button>
           <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-card px-1">
             <Button
               variant="ghost"
@@ -273,6 +290,7 @@ export function WeeklyProjectIssueBoard({
           </div>
         </div>
       </CardHeader>
+      {expanded && (
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <Table>
@@ -477,6 +495,7 @@ export function WeeklyProjectIssueBoard({
           </Table>
         </div>
       </CardContent>
+      )}
     </Card>
   );
 }

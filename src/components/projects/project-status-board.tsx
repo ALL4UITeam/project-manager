@@ -30,6 +30,7 @@ import { ProjectSearchInput } from "@/components/shared/project-search-input";
 import { IssueSearchInput } from "@/components/shared/issue-search-input";
 import { IssueList } from "@/components/issues/issue-components";
 import { filterIssuesBySearch } from "@/lib/issue-utils";
+import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,15 +91,38 @@ function ProjectFormDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   initial: ProjectForm;
-  onSave: (data: ProjectForm) => void;
+  onSave: (data: ProjectForm) => Promise<void>;
   title: string;
   canEditAssignee: boolean;
 }) {
   const [form, setForm] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) setForm(initial);
+    if (open) {
+      setForm(initial);
+      setSaveError(null);
+    }
   }, [open, initial]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave(form);
+      onOpenChange(false);
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : "저장에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+      setSaveError(message);
+      window.alert(message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -263,19 +287,19 @@ function ProjectFormDialog({
             </div>
           </FormDialogSection>
         </DialogBody>
+        {saveError && (
+          <p className="px-6 pb-0 text-sm text-destructive">{saveError}</p>
+        )}
         <DialogFooter>
           <Button variant="outline" className="min-w-24" onClick={() => onOpenChange(false)}>
             취소
           </Button>
           <Button
             className="min-w-24 shadow-sm shadow-primary/20"
-            onClick={() => {
-              onSave(form);
-              onOpenChange(false);
-            }}
-            disabled={!form.code || !form.name}
+            onClick={() => void handleSave()}
+            disabled={!form.code || !form.name || saving}
           >
-            저장
+            {saving ? "저장 중…" : "저장"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -561,9 +585,13 @@ export function ProjectStatusBoard() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         initial={editing ?? emptyForm}
-        onSave={(data) =>
-          editing ? updateProject(editing.id, data) : addProject(data)
-        }
+        onSave={async (data) => {
+          if (editing) {
+            await updateProject(editing.id, data);
+          } else {
+            await addProject(data);
+          }
+        }}
         title={editing ? "프로젝트 수정" : "프로젝트 등록"}
         canEditAssignee={canEditAssignee()}
       />

@@ -127,6 +127,21 @@ export function ScheduleGanttView() {
     return draftRows.filter((r) => rowOverlapsYear(r, selectedYear));
   }, [selectedProjectId, selectedYear, draftRows]);
 
+  const projectDraftRows = useMemo(
+    () => draftRows.filter((r) => r.projectId === selectedProjectId),
+    [draftRows, selectedProjectId]
+  );
+
+  const existingServices = useMemo(
+    () => [...new Set(projectDraftRows.map((r) => r.service))],
+    [projectDraftRows]
+  );
+
+  const defaultServiceForNewRow = useMemo(() => {
+    if (existingServices.length === 1) return existingServices[0];
+    return projectDraftRows[projectDraftRows.length - 1]?.service;
+  }, [existingServices, projectDraftRows]);
+
   const columns = useMemo(
     () => buildScheduleWeekColumnsForRows(rows, selectedYear),
     [rows, selectedYear]
@@ -355,6 +370,8 @@ export function ScheduleGanttView() {
           onOpenChange={setRowDialogOpen}
           projectId={selectedProjectId}
           editing={editingRow}
+          defaultService={defaultServiceForNewRow}
+          serviceSuggestions={existingServices}
           rowsForOrder={draftRows}
           onAddRow={addRow}
           onUpdateRow={updateRow}

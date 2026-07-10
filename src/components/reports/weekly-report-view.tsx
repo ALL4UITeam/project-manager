@@ -239,15 +239,15 @@ function MeetingPartProjectTable({ tasks }: { tasks: WeeklyTask[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <Table>
+      <Table className="table-fixed w-full">
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="w-28 font-semibold">프로젝트</TableHead>
-            <TableHead className="w-20 font-semibold">담당</TableHead>
-            <TableHead className="w-32 font-semibold">기간</TableHead>
-            <TableHead className="w-14 font-semibold">구분</TableHead>
-            <TableHead className="min-w-[300px] font-semibold">업무내용</TableHead>
-            <TableHead className="w-14 text-right font-semibold">M/D</TableHead>
+            <TableHead className="w-[250px] font-semibold">프로젝트</TableHead>
+            <TableHead className="w-[80px] font-semibold">담당</TableHead>
+            <TableHead className="w-[136px] font-semibold">기간</TableHead>
+            <TableHead className="w-[64px] font-semibold">구분</TableHead>
+            <TableHead className="font-semibold">업무내용</TableHead>
+            <TableHead className="w-[64px] text-right font-semibold">M/D</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -259,13 +259,13 @@ function MeetingPartProjectTable({ tasks }: { tasks: WeeklyTask[] }) {
                 {showProject && (
                   <TableCell
                     rowSpan={projectRowSpan}
-                    className="border-r border-border/80 bg-primary/5 align-middle"
+                    className="w-[250px] max-w-[250px] border-r border-border/80 bg-primary/5 align-top whitespace-normal"
                   >
                     <div className="space-y-1 py-1">
-                      <p className="font-mono text-sm font-bold text-primary">
+                      <p className="break-words font-mono text-sm font-bold leading-snug text-primary">
                         {project?.code}
                       </p>
-                      <p className="text-sm font-medium leading-snug text-foreground">
+                      <p className="break-words text-sm font-medium leading-snug text-foreground whitespace-normal">
                         {project?.name}
                       </p>
                       <Badge variant="secondary" className="mt-1 font-mono text-[10px]">
@@ -283,7 +283,7 @@ function MeetingPartProjectTable({ tasks }: { tasks: WeeklyTask[] }) {
                     rowSpan={memberRowSpan}
                     className="border-r border-border/60 bg-muted/20 align-middle font-medium"
                   >
-                    <p className="text-sm">{user?.name}</p>
+                    <p className="truncate text-sm">{user?.name}</p>
                     <p className="mt-0.5 font-mono text-[10px] text-primary">
                       {tasks
                         .filter(
@@ -305,10 +305,10 @@ function MeetingPartProjectTable({ tasks }: { tasks: WeeklyTask[] }) {
                     {task.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm leading-relaxed whitespace-pre-wrap">
+                <TableCell className="min-w-0 text-sm leading-relaxed whitespace-pre-wrap break-words">
                   {task.content}
                 </TableCell>
-                <TableCell className="text-right font-mono text-sm font-semibold text-primary">
+                <TableCell className="text-right font-mono text-sm font-semibold text-primary whitespace-nowrap">
                   {task.md}
                 </TableCell>
               </TableRow>
