@@ -63,6 +63,7 @@ export function ScheduleRowDialog({
   projectId,
   editing,
   defaultService,
+  serviceSuggestions = [],
   rowsForOrder,
   onAddRow,
   onUpdateRow,
@@ -73,6 +74,7 @@ export function ScheduleRowDialog({
   projectId: string;
   editing?: ScheduleRow | null;
   defaultService?: string;
+  serviceSuggestions?: string[];
   rowsForOrder?: ScheduleRow[];
   onAddRow?: (row: Omit<ScheduleRow, "id">) => void;
   onUpdateRow?: (id: string, data: Partial<ScheduleRow>) => void;
@@ -143,19 +145,39 @@ export function ScheduleRowDialog({
           icon={CalendarRange}
           accent="emerald"
           title={editing ? "일정 행 수정" : "일정 행 추가"}
-          description="서비스 · 파트 · 상세업무와 기간을 입력합니다."
+          description={
+            editing
+              ? "서비스 · 파트 · 상세업무와 기간을 입력합니다."
+              : "같은 서비스 아래 디자인·퍼블 등을 추가하려면 서비스명을 동일하게 입력하고, 구분(파트)만 바꿔 새 행을 추가하세요."
+          }
           badge={editing ? "수정" : "신규"}
         />
 
         <DialogBody className="space-y-3">
           <FormDialogSection title="WBS 정보">
-            <FormField label="서비스" required hint="예: Mobile, PC Web">
+            <FormField
+              label="서비스"
+              required
+              hint="예: GIS 서비스 — 같은 이름이면 한 그룹으로 묶입니다"
+            >
               <Input
                 className={formInputClassName()}
+                list={
+                  serviceSuggestions.length > 0
+                    ? "schedule-service-suggestions"
+                    : undefined
+                }
                 value={form.service}
                 onChange={(e) => setForm({ ...form, service: e.target.value })}
-                placeholder="Mobile"
+                placeholder="GIS 서비스"
               />
+              {serviceSuggestions.length > 0 && (
+                <datalist id="schedule-service-suggestions">
+                  {serviceSuggestions.map((service) => (
+                    <option key={service} value={service} />
+                  ))}
+                </datalist>
+              )}
             </FormField>
 
             <FormField label="구분 (파트)" required>
