@@ -111,7 +111,7 @@ interface AppContextValue {
   canEditPartLinks: (part: WorkPart) => boolean;
   addMeetingNote: (
     note: Omit<MeetingNote, "id" | "authorId" | "shareToken">
-  ) => MeetingNote;
+  ) => Promise<MeetingNote>;
   updateMeetingNote: (id: string, data: Partial<MeetingNote>) => void;
   deleteMeetingNote: (id: string) => void;
   getMeetingNoteByShareToken: (token: string) => MeetingNote | undefined;
@@ -599,23 +599,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addMeetingNote = useCallback(
     (note: Omit<MeetingNote, "id" | "authorId" | "shareToken">) => {
-      if (!currentUser) throw new Error("로그인이 필요합니다");
-      const temp: MeetingNote = {
-        ...note,
-        id: `temp-${Date.now()}`,
-        authorId: currentUser.id,
-        shareToken: "",
-      };
-      setMeetingNotes((prev) => [...prev, temp]);
-      void apiFetch<MeetingNote>("/api/meeting-notes", {
+      if (!currentUser) {
+        return Promise.reject(new Error("로그인이 필요합니다"));
+      }
+      return apiFetch<MeetingNote>("/api/meeting-notes", {
         method: "POST",
         body: JSON.stringify({ ...note, authorId: currentUser.id }),
-      }).then((created) =>
-        setMeetingNotes((prev) =>
-          prev.map((n) => (n.id === temp.id ? created : n))
-        )
-      );
-      return temp;
+      }).then((created) => {
+        setMeetingNotes((prev) => [...prev, created]);
+        return created;
+      });
     },
     [currentUser]
   );

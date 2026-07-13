@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { ArrowLeft, FileText, Link2, Save } from "lucide-react";
-import type { MeetingNote } from "@/types";
 import { useApp } from "@/context/app-context";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import {
@@ -68,6 +67,8 @@ function MeetingNoteEditorContent() {
     : undefined;
 
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!canEditMeetingNote()) {
@@ -139,8 +140,8 @@ function MeetingNoteEditorContent() {
     );
   }
 
-  const handleSave = () => {
-    if (!isValid) return;
+  const handleSave = async () => {
+    if (!isValid || saving) return;
 
     const payload = {
       projectId: resolvedProject.id,
@@ -154,14 +155,21 @@ function MeetingNoteEditorContent() {
       linkShareEnabled: form.linkShareEnabled,
     };
 
-    let saved: MeetingNote;
-    if (existingNote) {
-      updateMeetingNote(existingNote.id, payload);
-      saved = { ...existingNote, ...payload };
-    } else {
-      saved = addMeetingNote(payload);
+    setSaving(true);
+    setSaveError(null);
+    try {
+      if (existingNote) {
+        updateMeetingNote(existingNote.id, payload);
+        router.replace(meetingsViewPath(existingNote.id, resolvedProject.id));
+      } else {
+        const saved = await addMeetingNote(payload);
+        router.replace(meetingsViewPath(saved.id, resolvedProject.id));
+      }
+    } catch {
+      setSaveError("회의록 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSaving(false);
     }
-    router.replace(meetingsViewPath(saved.id, resolvedProject.id));
   };
 
   const listPath = meetingsListPath({ projectId: resolvedProject.id });
@@ -287,17 +295,23 @@ function MeetingNoteEditorContent() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 border-t pt-4">
+          <div className="flex flex-col items-end gap-2 border-t pt-4">
+            {saveError && (
+              <p className="w-full text-sm text-destructive">{saveError}</p>
+            )}
+            <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={() => router.push(viewPath)}
+              disabled={saving}
             >
               취소
             </Button>
-            <Button onClick={handleSave} disabled={!isValid}>
+            <Button onClick={() => void handleSave()} disabled={!isValid || saving}>
               <Save className="mr-1.5 h-4 w-4" />
-              {existingNote ? "수정 저장" : "작성 완료"}
+              {saving ? "저장 중…" : existingNote ? "수정 저장" : "작성 완료"}
             </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
