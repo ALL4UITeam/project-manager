@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
   Bold,
@@ -57,10 +56,11 @@ export function RichTextEditor({
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit,
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: { class: "text-primary underline" },
+      StarterKit.configure({
+        link: {
+          openOnClick: false,
+          HTMLAttributes: { class: "text-primary underline" },
+        },
       }),
       Placeholder.configure({ placeholder }),
     ],
