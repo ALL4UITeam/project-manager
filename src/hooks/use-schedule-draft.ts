@@ -51,6 +51,53 @@ export function useScheduleDraft(
     setSaveMessage(null);
   }, []);
 
+  const deleteRowsByIds = useCallback((ids: string[]) => {
+    const idSet = new Set(ids);
+    setDraftRows((prev) => prev.filter((row) => !idSet.has(row.id)));
+    setSaveMessage(null);
+  }, []);
+
+  const deleteByService = useCallback(
+    (service: string) => {
+      setDraftRows((prev) => prev.filter((row) => row.service !== service));
+      setSaveMessage(null);
+    },
+    []
+  );
+
+  const deleteByServicePart = useCallback((service: string, part: string) => {
+    setDraftRows((prev) =>
+      prev.filter((row) => !(row.service === service && row.part === part))
+    );
+    setSaveMessage(null);
+  }, []);
+
+  const renameService = useCallback((oldService: string, newService: string) => {
+    const next = newService.trim();
+    if (!next || next === oldService) return;
+    setDraftRows((prev) =>
+      prev.map((row) =>
+        row.service === oldService ? { ...row, service: next } : row
+      )
+    );
+    setSaveMessage(null);
+  }, []);
+
+  const renameServicePart = useCallback(
+    (service: string, oldPart: string, newPart: ScheduleRow["part"]) => {
+      if (oldPart === newPart) return;
+      setDraftRows((prev) =>
+        prev.map((row) =>
+          row.service === service && row.part === oldPart
+            ? { ...row, part: newPart }
+            : row
+        )
+      );
+      setSaveMessage(null);
+    },
+    []
+  );
+
   const applyTemplate = useCallback(
     (templateId: ScheduleTemplateId, anchorDate: string) => {
       const maxOrder = draftRows.reduce(
@@ -119,6 +166,11 @@ export function useScheduleDraft(
     addRow,
     updateRow,
     deleteRow,
+    deleteRowsByIds,
+    deleteByService,
+    deleteByServicePart,
+    renameService,
+    renameServicePart,
     applyTemplate,
     resetDraft,
     saveDraft,

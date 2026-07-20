@@ -96,13 +96,20 @@ interface AppContextValue {
   addProjectIssue: (issue: Omit<ProjectIssue, "id" | "weekStart" | "userId">) => void;
   updateProjectIssue: (
     id: string,
-    data: Partial<Pick<ProjectIssue, "status" | "content" | "weekStart">>
+    data: Partial<Pick<ProjectIssue, "status" | "content" | "date" | "weekStart">>
   ) => void;
+  deleteProjectIssue: (id: string) => void;
   getIssuesByProject: (projectId: string) => ProjectIssue[];
   getIssuesByWeek: (reportWeekStart: string) => ProjectIssue[];
   addProjectRemark: (remark: Omit<ProjectRemark, "id" | "userId">) => void;
+  updateProjectRemark: (
+    id: string,
+    data: Partial<Pick<ProjectRemark, "date" | "content" | "weekStart">>
+  ) => void;
+  deleteProjectRemark: (id: string) => void;
   getRemarksByProject: (projectId: string) => ProjectRemark[];
   getRemarksByWeek: (weekStart: string) => ProjectRemark[];
+  canDeleteProject: () => boolean;
   addProjectResourceLink: (
     link: Omit<ProjectResourceLink, "id" | "userId">
   ) => void;
@@ -500,7 +507,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateProjectIssue = useCallback(
     (
       id: string,
-      data: Partial<Pick<ProjectIssue, "status" | "content" | "weekStart">>
+      data: Partial<Pick<ProjectIssue, "status" | "content" | "date" | "weekStart">>
     ) => {
       setProjectIssues((prev) =>
         prev.map((issue) => (issue.id === id ? { ...issue, ...data } : issue))
@@ -516,6 +523,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     []
   );
+
+  const deleteProjectIssue = useCallback((id: string) => {
+    setProjectIssues((prev) => prev.filter((issue) => issue.id !== id));
+    void apiFetch(`/api/project-issues/${id}`, { method: "DELETE" });
+  }, []);
 
   const getIssuesByProject = useCallback(
     (projectId: string) =>
@@ -544,6 +556,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [currentUser]
   );
+
+  const updateProjectRemark = useCallback(
+    (
+      id: string,
+      data: Partial<Pick<ProjectRemark, "date" | "content" | "weekStart">>
+    ) => {
+      setProjectRemarks((prev) =>
+        prev.map((remark) => (remark.id === id ? { ...remark, ...data } : remark))
+      );
+      void apiFetch<ProjectRemark>(`/api/project-remarks/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }).then((updated) =>
+        setProjectRemarks((prev) =>
+          prev.map((remark) => (remark.id === id ? updated : remark))
+        )
+      );
+    },
+    []
+  );
+
+  const deleteProjectRemark = useCallback((id: string) => {
+    setProjectRemarks((prev) => prev.filter((remark) => remark.id !== id));
+    void apiFetch(`/api/project-remarks/${id}`, { method: "DELETE" });
+  }, []);
 
   const getRemarksByProject = useCallback(
     (projectId: string) =>
@@ -774,7 +811,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const canEditProject = useCallback(() => {
     if (!currentUser) return false;
-    return isStaffRole(currentUser.role);
+    return ["MASTER", "LEADER"].includes(currentUser.role);
+  }, [currentUser]);
+
+  const canDeleteProject = useCallback(() => {
+    if (!currentUser) return false;
+    return ["MASTER", "LEADER"].includes(currentUser.role);
   }, [currentUser]);
 
   const canViewAllReports = useCallback(() => {
@@ -856,9 +898,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getScheduleNotesByProject,
       addProjectIssue,
       updateProjectIssue,
+      deleteProjectIssue,
       getIssuesByProject,
       getIssuesByWeek,
       addProjectRemark,
+      updateProjectRemark,
+      deleteProjectRemark,
       getRemarksByProject,
       getRemarksByWeek,
       addProjectResourceLink,
@@ -884,6 +929,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       filteredWeeklyTasks,
       canAccess,
       canEditProject,
+      canDeleteProject,
       canEditAssignee,
       canViewAllReports,
       canEditTask,
@@ -933,9 +979,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getScheduleNotesByProject,
       addProjectIssue,
       updateProjectIssue,
+      deleteProjectIssue,
       getIssuesByProject,
       getIssuesByWeek,
       addProjectRemark,
+      updateProjectRemark,
+      deleteProjectRemark,
       getRemarksByProject,
       getRemarksByWeek,
       addProjectResourceLink,
@@ -961,6 +1010,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       filteredWeeklyTasks,
       canAccess,
       canEditProject,
+      canDeleteProject,
       canEditAssignee,
       canViewAllReports,
       canEditTask,

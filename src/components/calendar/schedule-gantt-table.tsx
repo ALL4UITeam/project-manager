@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 
 /** 주간 타임라인 셀 너비(px) — 컴팩트 */
 const CELL_W = 30;
-const STICKY = { service: 72, part: 56, task: 140, remarks: 128 };
+const STICKY = { service: 88, part: 72, task: 140, remarks: 128 };
 
 function RemarkCell({
   row,
@@ -101,6 +101,10 @@ export function ScheduleGanttTable({
   canEdit,
   onEdit,
   onDelete,
+  onDeleteService,
+  onDeletePart,
+  onEditService,
+  onEditPart,
   onUpdateRemarks,
 }: {
   rows: ScheduleRow[];
@@ -108,6 +112,12 @@ export function ScheduleGanttTable({
   canEdit: boolean;
   onEdit: (row: ScheduleRow) => void;
   onDelete: (row: ScheduleRow) => void;
+  /** 서비스(맨 앞 열) 삭제 → 하위 구분·상세 전부 삭제 */
+  onDeleteService?: (service: string) => void;
+  /** 구분(중간 열) 삭제 → 해당 구분의 상세업무 전부 삭제 */
+  onDeletePart?: (service: string, part: ScheduleRow["part"]) => void;
+  onEditService?: (service: string) => void;
+  onEditPart?: (service: string, part: ScheduleRow["part"]) => void;
   onUpdateRemarks?: (id: string, remarks: string) => void;
 }) {
   const monthGroups = groupColumnsByMonth(columns);
@@ -223,7 +233,37 @@ export function ScheduleGanttTable({
                     className="sticky left-0 z-20 border-r border-border/60 bg-card px-2 py-1.5 align-middle text-[13px] font-semibold"
                     style={{ width: STICKY.service, minWidth: STICKY.service }}
                   >
-                    {row.service}
+                    <div className="flex items-center justify-between gap-1">
+                      <span>{row.service}</span>
+                      {canEdit && (onEditService || onDeleteService) && (
+                        <div className="flex shrink-0 gap-0 opacity-0 transition-opacity group-hover:opacity-100">
+                          {onEditService && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="h-6 w-6"
+                              title={`「${row.service}」 서비스명 수정`}
+                              onClick={() => onEditService(row.service)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {onDeleteService && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              title={`「${row.service}」 서비스 및 하위 일정 모두 삭제`}
+                              onClick={() => onDeleteService(row.service)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                 )}
                 {row.showPart && (
@@ -239,7 +279,39 @@ export function ScheduleGanttTable({
                       minWidth: STICKY.part,
                     }}
                   >
-                    {row.part}
+                    <div className="flex items-center justify-between gap-1">
+                      <span>{row.part}</span>
+                      {canEdit && (onEditPart || onDeletePart) && (
+                        <div className="flex shrink-0 gap-0 opacity-0 transition-opacity group-hover:opacity-100">
+                          {onEditPart && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="h-6 w-6"
+                              title={`「${row.part}」 구분 수정`}
+                              onClick={() => onEditPart(row.service, row.part)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {onDeletePart && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              title={`「${row.part}」 구분 및 하위 상세업무 모두 삭제`}
+                              onClick={() =>
+                                onDeletePart(row.service, row.part)
+                              }
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                 )}
                 <td

@@ -13,6 +13,10 @@ export function ScheduleGanttProjectPanel({
   canEdit,
   onEdit,
   onDelete,
+  onDeleteService,
+  onDeletePart,
+  onEditService,
+  onEditPart,
   onUpdateRemarks,
   showSharePanel = false,
   compact = false,
@@ -24,6 +28,10 @@ export function ScheduleGanttProjectPanel({
   canEdit: boolean;
   onEdit: (row: ScheduleRow) => void;
   onDelete: (row: ScheduleRow) => void;
+  onDeleteService?: (service: string) => void;
+  onDeletePart?: (service: string, part: ScheduleRow["part"]) => void;
+  onEditService?: (service: string) => void;
+  onEditPart?: (service: string, part: ScheduleRow["part"]) => void;
   onUpdateRemarks?: (id: string, remarks: string) => void;
   showSharePanel?: boolean;
   /** 공유 페이지 — 메타 정보 최소화 */
@@ -71,6 +79,10 @@ export function ScheduleGanttProjectPanel({
         canEdit={canEdit}
         onEdit={onEdit}
         onDelete={onDelete}
+        onDeleteService={onDeleteService}
+        onDeletePart={onDeletePart}
+        onEditService={onEditService}
+        onEditPart={onEditPart}
         onUpdateRemarks={onUpdateRemarks}
       />
     </div>

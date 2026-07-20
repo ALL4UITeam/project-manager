@@ -2,17 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Shield,
-  Users,
-  User,
-  Building2,
-  LayoutDashboard,
-  ArrowRight,
-} from "lucide-react";
+import { LayoutDashboard, ArrowRight } from "lucide-react";
 import { useApp } from "@/context/app-context";
-import { quickLoginAccounts } from "@/data/mock-data";
-import { ROLE_LABELS, type UserRole } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,27 +14,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-
-const ROLE_ICONS: Record<UserRole, typeof Shield> = {
-  MASTER: Shield,
-  LEADER: Users,
-  MEMBER: User,
-  EXTERNAL: Building2,
-};
-
-const QUICK_ROLES: UserRole[] = ["MASTER", "LEADER", "MEMBER", "EXTERNAL"];
-
-const ROLE_ACCENTS: Record<UserRole, string> = {
-  MASTER: "from-violet-500/10 to-indigo-500/10 hover:from-violet-500/15 hover:to-indigo-500/15 border-violet-200/60",
-  LEADER: "from-sky-500/10 to-cyan-500/10 hover:from-sky-500/15 hover:to-cyan-500/15 border-sky-200/60",
-  MEMBER: "from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/15 hover:to-teal-500/15 border-emerald-200/60",
-  EXTERNAL: "from-amber-500/10 to-orange-500/10 hover:from-amber-500/15 hover:to-orange-500/15 border-amber-200/60",
-};
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loginAs, currentUser, users } = useApp();
+  const { login, currentUser } = useApp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -63,14 +37,6 @@ export default function LoginPage() {
       router.push(user.role === "EXTERNAL" ? "/calendar" : "/projects");
     } else {
       setError("이메일 또는 비밀번호가 올바르지 않습니다.");
-    }
-  };
-
-  const handleQuickLogin = (role: UserRole) => {
-    const user = users.find((u) => u.role === role);
-    if (user) {
-      loginAs(user.id);
-      router.push(role === "EXTERNAL" ? "/calendar" : "/projects");
     }
   };
 
@@ -101,7 +67,7 @@ export default function LoginPage() {
           <CardHeader>
             <CardTitle className="font-display text-lg">로그인</CardTitle>
             <CardDescription>
-              실무 계정으로 로그인하거나 권한별로 바로 접속하세요.
+              발급받은 계정으로 로그인해 주세요.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -136,39 +102,6 @@ export default function LoginPage() {
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
-
-            <div className="mt-8">
-              <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                빠른 로그인
-              </p>
-              <div className="grid grid-cols-2 gap-2.5">
-                {QUICK_ROLES.map((role) => {
-                  const Icon = ROLE_ICONS[role];
-                  const account = quickLoginAccounts.find(
-                    (u) => u.role === role
-                  );
-                  return (
-                    <Button
-                      key={role}
-                      variant="outline"
-                      className={cn(
-                        "h-auto flex-col gap-1.5 border bg-gradient-to-br py-3.5 transition-all",
-                        ROLE_ACCENTS[role]
-                      )}
-                      onClick={() => handleQuickLogin(role)}
-                    >
-                      <Icon className="h-4 w-4 text-primary" strokeWidth={2.25} />
-                      <span className="text-sm font-semibold">
-                        {ROLE_LABELS[role]}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {account?.name}
-                      </span>
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

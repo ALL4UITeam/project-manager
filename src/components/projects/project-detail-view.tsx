@@ -206,7 +206,7 @@ export function ProjectDetailView({
         defaultOpen={false}
         contentClassName="max-h-80 overflow-y-auto"
       >
-        <RemarkList remarks={projectRemarks} />
+        <RemarkList remarks={projectRemarks} editable />
       </CollapsibleSection>
 
       <CollapsibleSection

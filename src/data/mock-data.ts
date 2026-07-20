@@ -766,10 +766,6 @@ export const mockMeetingNotes: MeetingNote[] = [
   },
 ];
 
-export const quickLoginAccounts = mockUsers.filter((u) =>
-  ["MASTER", "LEADER", "MEMBER", "EXTERNAL"].includes(u.role)
-);
-
 export function getProjectById(id: string, projects: Project[]) {
   return projects.find((p) => p.id === id);
 }

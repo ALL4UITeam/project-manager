@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Pencil, ChevronRight, FolderKanban } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, FolderKanban, ArrowUpDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   FormDialogHeader,
@@ -24,6 +24,11 @@ import {
   filterProjectsByYear,
   getDefaultSelectedYear,
   filterProjectsBySearch,
+  sortProjects,
+  filterProjectsByStatus,
+  type ProjectSortKey,
+  type ProjectSortDir,
+  type ProjectStatusFilter,
 } from "@/lib/project-utils";
 import { YearFilterSelect } from "@/components/shared/year-filter-select";
 import { ProjectSearchInput } from "@/components/shared/project-search-input";
@@ -315,7 +320,9 @@ export function ProjectStatusBoard() {
     projectIssues,
     addProject,
     updateProject,
+    deleteProject,
     canEditProject,
+    canDeleteProject,
     canEditAssignee,
     getUserById,
     getProjectById,
@@ -332,6 +339,9 @@ export function ProjectStatusBoard() {
   const [editing, setEditing] = useState<Project | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [issueSearchQuery, setIssueSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<ProjectSortKey>("code");
+  const [sortDir, setSortDir] = useState<ProjectSortDir>("asc");
+  const [statusFilter, setStatusFilter] = useState<ProjectStatusFilter>("all");
 
   const yearProjects = useMemo(() => {
     const byYear = filterProjectsByYear(projects, selectedYear);
@@ -339,9 +349,19 @@ export function ProjectStatusBoard() {
     return byYear.filter((p) => p.id === projectFilter);
   }, [projects, selectedYear, projectFilter]);
 
-  const displayProjects = useMemo(
-    () => filterProjectsBySearch(yearProjects, searchQuery),
-    [yearProjects, searchQuery]
+  const displayProjects = useMemo(() => {
+    const searched = filterProjectsBySearch(yearProjects, searchQuery);
+    const byStatus = filterProjectsByStatus(searched, statusFilter);
+    return sortProjects(byStatus, sortKey, sortDir);
+  }, [yearProjects, searchQuery, statusFilter, sortKey, sortDir]);
+
+  const activeCount = useMemo(
+    () => filterProjectsByStatus(yearProjects, "active").length,
+    [yearProjects]
+  );
+  const doneCount = useMemo(
+    () => filterProjectsByStatus(yearProjects, "done").length,
+    [yearProjects]
   );
 
   const yearProjectIds = useMemo(
@@ -389,6 +409,15 @@ export function ProjectStatusBoard() {
     return { md, memberCount, taskCount: tasks.length, allocatedTotal };
   };
 
+  const toggleSort = (key: ProjectSortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
   if (selectedProject) {
     return (
       <ProjectDetailView
@@ -403,7 +432,7 @@ export function ProjectStatusBoard() {
       <PageHeader
         icon={FolderKanban}
         title={`프로젝트 현황 (${selectedYear})`}
-        description="진행 중 프로젝트 우선 · 클릭 시 파트별 투입 · 이슈 이력 전체 조회"
+        description="진행/완료 분리 · 정렬 · 클릭 시 파트별 투입 · 이슈 이력"
       >
         <YearFilterSelect
           years={availableYears}
@@ -448,14 +477,60 @@ export function ProjectStatusBoard() {
       )}
 
       <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">
-            {selectedYear}년 프로젝트 ({displayProjects.length}건
-            {searchQuery.trim() && yearProjects.length !== displayProjects.length
-              ? ` · 전체 ${yearProjects.length}건`
-              : ""}
-            )
-          </CardTitle>
+        <CardHeader className="space-y-3 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="text-base font-semibold">
+              {selectedYear}년 프로젝트 ({displayProjects.length}건
+              {searchQuery.trim() && yearProjects.length !== displayProjects.length
+                ? ` · 전체 ${yearProjects.length}건`
+                : ""}
+              )
+            </CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-lg border border-border p-0.5">
+                {(
+                  [
+                    ["all", `전체 ${yearProjects.length}`],
+                    ["active", `진행 ${activeCount}`],
+                    ["done", `완료 ${doneCount}`],
+                  ] as const
+                ).map(([value, label]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={statusFilter === value ? "secondary" : "ghost"}
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setStatusFilter(value)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <Select
+                value={`${sortKey}:${sortDir}`}
+                onValueChange={(v) => {
+                  const [k, d] = v.split(":") as [ProjectSortKey, ProjectSortDir];
+                  setSortKey(k);
+                  setSortDir(d);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[160px] text-xs">
+                  <ArrowUpDown className="mr-1.5 h-3.5 w-3.5" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="code:asc">코드 오름차순</SelectItem>
+                  <SelectItem value="code:desc">코드 내림차순</SelectItem>
+                  <SelectItem value="name:asc">이름 오름차순</SelectItem>
+                  <SelectItem value="name:desc">이름 내림차순</SelectItem>
+                  <SelectItem value="status:asc">상태 순</SelectItem>
+                  <SelectItem value="startDate:asc">시작일 오름차순</SelectItem>
+                  <SelectItem value="startDate:desc">시작일 내림차순</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {yearProjects.length === 0 ? (
@@ -464,27 +539,66 @@ export function ProjectStatusBoard() {
             </p>
           ) : displayProjects.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              「{searchQuery}」 검색 결과가 없습니다
+              {searchQuery.trim()
+                ? `「${searchQuery}」 검색 결과가 없습니다`
+                : "선택한 상태의 프로젝트가 없습니다"}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="w-24 font-semibold">코드</TableHead>
+                    <TableHead className="w-24 font-semibold">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 hover:text-primary"
+                        onClick={() => toggleSort("code")}
+                      >
+                        코드
+                        {sortKey === "code" && (
+                          <span className="text-[10px]">
+                            {sortDir === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </button>
+                    </TableHead>
                     <TableHead className="min-w-[240px] font-semibold">
-                      프로젝트명
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 hover:text-primary"
+                        onClick={() => toggleSort("name")}
+                      >
+                        프로젝트명
+                        {sortKey === "name" && (
+                          <span className="text-[10px]">
+                            {sortDir === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </button>
                     </TableHead>
                     <TableHead className="w-24 font-semibold">PM</TableHead>
                     <TableHead className="w-28 font-semibold">담당</TableHead>
                     <TableHead className="w-28 font-semibold">기간</TableHead>
-                    <TableHead className="w-20 font-semibold">상태</TableHead>
+                    <TableHead className="w-20 font-semibold">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 hover:text-primary"
+                        onClick={() => toggleSort("status")}
+                      >
+                        상태
+                        {sortKey === "status" && (
+                          <span className="text-[10px]">
+                            {sortDir === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </button>
+                    </TableHead>
                     <TableHead className="w-28 font-semibold">
                       투입 / 수주
                     </TableHead>
                     <TableHead className="w-16 font-semibold">이슈</TableHead>
-                    {canEditProject() && (
-                      <TableHead className="w-12 font-semibold" />
+                    {(canEditProject() || canDeleteProject()) && (
+                      <TableHead className="w-20 font-semibold" />
                     )}
                     <TableHead className="w-8" />
                   </TableRow>
@@ -552,20 +666,43 @@ export function ProjectStatusBoard() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        {canEditProject() && (
+                        {(canEditProject() || canDeleteProject()) && (
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditing(project);
-                                setDialogOpen(true);
-                              }}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
+                            <div className="flex items-center gap-0.5">
+                              {canEditProject() && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditing(project);
+                                    setDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              {canDeleteProject() && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (
+                                      window.confirm(
+                                        `"${project.code}" 프로젝트를 삭제할까요?\n연결된 업무·이슈 등이 있으면 실패할 수 있습니다.`
+                                      )
+                                    ) {
+                                      deleteProject(project.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         )}
                         <TableCell>

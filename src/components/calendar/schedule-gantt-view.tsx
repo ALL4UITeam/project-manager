@@ -12,7 +12,7 @@ import {
 import { format } from "date-fns";
 import { useApp } from "@/context/app-context";
 import { useScheduleDraft } from "@/hooks/use-schedule-draft";
-import type { ScheduleRow } from "@/types";
+import type { ScheduleRow, WorkPart } from "@/types";
 import {
   buildScheduleWeekColumnsForRows,
   rowOverlapsYear,
@@ -26,11 +26,17 @@ import {
   filterProjectsByYear,
   getAvailableYears,
   getDefaultSelectedYear,
+  sortProjects,
+  type ProjectSortDir,
 } from "@/lib/project-utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { YearFilterSelect } from "@/components/shared/year-filter-select";
 import { ScheduleRowDialog } from "@/components/calendar/schedule-row-dialog";
 import { ScheduleGanttProjectPanel } from "@/components/calendar/schedule-gantt-project-panel";
+import {
+  ScheduleGroupEditDialog,
+  type ScheduleGroupEditTarget,
+} from "@/components/calendar/schedule-group-edit-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,16 +73,17 @@ export function ScheduleGanttView() {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [projectSortDir, setProjectSortDir] = useState<ProjectSortDir>("asc");
 
   const yearProjects = useMemo(
     () => filterProjectsByYear(projects, selectedYear),
     [projects, selectedYear]
   );
 
-  const filteredProjects = useMemo(
-    () => filterProjectsBySearch(yearProjects, searchQuery),
-    [yearProjects, searchQuery]
-  );
+  const filteredProjects = useMemo(() => {
+    const searched = filterProjectsBySearch(yearProjects, searchQuery);
+    return sortProjects(searched, "code", projectSortDir);
+  }, [yearProjects, searchQuery, projectSortDir]);
 
   const serverRows = useMemo(
     () =>
@@ -92,6 +99,10 @@ export function ScheduleGanttView() {
     addRow,
     updateRow,
     deleteRow,
+    deleteByService,
+    deleteByServicePart,
+    renameService,
+    renameServicePart,
     applyTemplate,
     resetDraft,
     saveDraft,
@@ -149,6 +160,9 @@ export function ScheduleGanttView() {
 
   const [rowDialogOpen, setRowDialogOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<ScheduleRow | null>(null);
+  const [groupEditOpen, setGroupEditOpen] = useState(false);
+  const [groupEditTarget, setGroupEditTarget] =
+    useState<ScheduleGroupEditTarget | null>(null);
   const [templateAnchor, setTemplateAnchor] = useState(
     format(new Date(), "yyyy-MM-dd")
   );
@@ -174,6 +188,38 @@ export function ScheduleGanttView() {
     if (window.confirm(`"${row.taskName}" 일정을 삭제할까요?`)) {
       deleteRow(row.id);
     }
+  };
+
+  const handleDeleteService = (service: string) => {
+    if (!canEdit) return;
+    if (
+      window.confirm(
+        `「${service}」 서비스와 하위 구분·상세업무를 모두 삭제할까요?`
+      )
+    ) {
+      deleteByService(service);
+    }
+  };
+
+  const handleDeletePart = (service: string, part: ScheduleRow["part"]) => {
+    if (!canEdit) return;
+    if (
+      window.confirm(
+        `「${service} / ${part}」 구분과 하위 상세업무를 모두 삭제할까요?`
+      )
+    ) {
+      deleteByServicePart(service, part);
+    }
+  };
+
+  const openEditService = (service: string) => {
+    setGroupEditTarget({ type: "service", service });
+    setGroupEditOpen(true);
+  };
+
+  const openEditPart = (service: string, part: WorkPart) => {
+    setGroupEditTarget({ type: "part", service, part });
+    setGroupEditOpen(true);
   };
 
   const handleUpdateRemarks = (id: string, remarks: string) => {
@@ -307,9 +353,25 @@ export function ScheduleGanttView() {
 
           {filteredProjects.length > 0 && (
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground">
-                프로젝트
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  프로젝트
+                </p>
+                <Select
+                  value={projectSortDir}
+                  onValueChange={(v) =>
+                    setProjectSortDir(v as ProjectSortDir)
+                  }
+                >
+                  <SelectTrigger className="h-7 w-[140px] text-[11px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="asc">코드 오름차순</SelectItem>
+                    <SelectItem value="desc">코드 내림차순</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Select
                 value={selectedProjectId}
                 onValueChange={handleProjectChange}
@@ -358,6 +420,10 @@ export function ScheduleGanttView() {
             canEdit={canEdit}
             onEdit={openEditRow}
             onDelete={handleDeleteRow}
+            onDeleteService={handleDeleteService}
+            onDeletePart={handleDeletePart}
+            onEditService={openEditService}
+            onEditPart={openEditPart}
             onUpdateRemarks={handleUpdateRemarks}
             showSharePanel
           />
@@ -378,6 +444,14 @@ export function ScheduleGanttView() {
           onDeleteRow={deleteRow}
         />
       )}
+
+      <ScheduleGroupEditDialog
+        open={groupEditOpen}
+        onOpenChange={setGroupEditOpen}
+        target={groupEditTarget}
+        onSaveService={renameService}
+        onSavePart={renameServicePart}
+      />
     </>
   );
 }

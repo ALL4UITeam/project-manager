@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   FolderOpen,
   Plus,
+  ArrowUpDown,
 } from "lucide-react";
 import { useApp } from "@/context/app-context";
 import type { Project, MeetingNote } from "@/types";
@@ -27,6 +28,12 @@ import {
   getDefaultSelectedYear,
   dateInYear,
   filterProjectsBySearch,
+  sortProjects,
+  filterProjectsByStatus,
+  countProjectsByStatus,
+  type ProjectSortKey,
+  type ProjectSortDir,
+  type ProjectStatusFilter,
 } from "@/lib/project-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +43,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -166,6 +180,10 @@ function MeetingNotesViewContent() {
     null
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<ProjectSortKey>("status");
+  const [sortDir, setSortDir] = useState<ProjectSortDir>("asc");
+  const [statusFilter, setStatusFilter] =
+    useState<ProjectStatusFilter>("all");
 
   const availableYears = useMemo(() => {
     const fromProjects = getAvailableYears(projects);
@@ -187,10 +205,16 @@ function MeetingNotesViewContent() {
     [projects, selectedYear]
   );
 
-  const displayProjects = useMemo(
-    () => filterProjectsBySearch(yearProjects, searchQuery),
-    [yearProjects, searchQuery]
+  const statusCounts = useMemo(
+    () => countProjectsByStatus(yearProjects),
+    [yearProjects]
   );
+
+  const displayProjects = useMemo(() => {
+    const searched = filterProjectsBySearch(yearProjects, searchQuery);
+    const byStatus = filterProjectsByStatus(searched, statusFilter);
+    return sortProjects(byStatus, sortKey, sortDir);
+  }, [yearProjects, searchQuery, statusFilter, sortKey, sortDir]);
 
   const yearNotes = useMemo(
     () => meetingNotes.filter((n) => dateInYear(n.date, selectedYear)),
@@ -217,6 +241,7 @@ function MeetingNotesViewContent() {
     setSelectedYear(year);
     setSelectedProjectId(null);
     setSearchQuery("");
+    setStatusFilter("all");
     router.replace(meetingsListPath({ year }));
   };
 
@@ -228,6 +253,15 @@ function MeetingNotesViewContent() {
   const closeProject = () => {
     setSelectedProjectId(null);
     router.replace(meetingsListPath({ year: selectedYear }));
+  };
+
+  const toggleSort = (key: ProjectSortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
   };
 
   useEffect(() => {
@@ -252,7 +286,7 @@ function MeetingNotesViewContent() {
         icon={FileText}
         iconClassName="bg-rose-500/10 text-rose-600 ring-rose-500/15"
         title={`회의록 (${selectedYear})`}
-        description={`${selectedYear}년 프로젝트별 회의록 · 외부 공유는 링크로 제공`}
+        description={`${selectedYear}년 프로젝트별 회의록 · 진행/홀드/완료 필터 · 외부 공유는 링크로 제공`}
       >
         <YearFilterSelect
           years={availableYears}
@@ -271,14 +305,65 @@ function MeetingNotesViewContent() {
         />
       ) : (
         <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">
-              {selectedYear}년 프로젝트 ({displayProjects.length}건
-              {searchQuery.trim() && yearProjects.length !== displayProjects.length
-                ? ` · 전체 ${yearProjects.length}건`
-                : ""}
-              )
-            </CardTitle>
+          <CardHeader className="space-y-3 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-base font-semibold">
+                {selectedYear}년 프로젝트 ({displayProjects.length}건
+                {searchQuery.trim() &&
+                yearProjects.length !== displayProjects.length
+                  ? ` · 전체 ${yearProjects.length}건`
+                  : ""}
+                )
+              </CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap rounded-lg border border-border p-0.5">
+                  {(
+                    [
+                      ["all", `전체 ${statusCounts.all}`],
+                      ["progress", `진행 ${statusCounts.progress}`],
+                      ["hold", `홀드 ${statusCounts.hold}`],
+                      ["done", `완료 ${statusCounts.done}`],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      size="sm"
+                      variant={statusFilter === value ? "secondary" : "ghost"}
+                      className="h-7 px-2.5 text-xs"
+                      onClick={() => setStatusFilter(value)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <Select
+                  value={`${sortKey}:${sortDir}`}
+                  onValueChange={(v) => {
+                    const [k, d] = v.split(":") as [
+                      ProjectSortKey,
+                      ProjectSortDir,
+                    ];
+                    setSortKey(k);
+                    setSortDir(d);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[160px] text-xs">
+                    <ArrowUpDown className="mr-1.5 h-3.5 w-3.5" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="status:asc">상태 순</SelectItem>
+                    <SelectItem value="code:asc">코드 오름차순</SelectItem>
+                    <SelectItem value="code:desc">코드 내림차순</SelectItem>
+                    <SelectItem value="name:asc">이름 오름차순</SelectItem>
+                    <SelectItem value="name:desc">이름 내림차순</SelectItem>
+                    <SelectItem value="startDate:asc">시작일 오름차순</SelectItem>
+                    <SelectItem value="startDate:desc">시작일 내림차순</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {yearProjects.length === 0 ? (
@@ -287,20 +372,59 @@ function MeetingNotesViewContent() {
               </p>
             ) : displayProjects.length === 0 ? (
               <p className="py-10 text-center text-sm text-muted-foreground">
-                「{searchQuery}」 검색 결과가 없습니다
+                {searchQuery.trim()
+                  ? `「${searchQuery}」 검색 결과가 없습니다`
+                  : "선택한 상태의 프로젝트가 없습니다"}
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="w-24 font-semibold">코드</TableHead>
+                      <TableHead className="w-24 font-semibold">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 hover:text-primary"
+                          onClick={() => toggleSort("code")}
+                        >
+                          코드
+                          {sortKey === "code" && (
+                            <span className="text-[10px]">
+                              {sortDir === "asc" ? "↑" : "↓"}
+                            </span>
+                          )}
+                        </button>
+                      </TableHead>
                       <TableHead className="min-w-[240px] font-semibold">
-                        프로젝트명
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 hover:text-primary"
+                          onClick={() => toggleSort("name")}
+                        >
+                          프로젝트명
+                          {sortKey === "name" && (
+                            <span className="text-[10px]">
+                              {sortDir === "asc" ? "↑" : "↓"}
+                            </span>
+                          )}
+                        </button>
                       </TableHead>
                       <TableHead className="w-24 font-semibold">PM</TableHead>
                       <TableHead className="w-28 font-semibold">기간</TableHead>
-                      <TableHead className="w-20 font-semibold">상태</TableHead>
+                      <TableHead className="w-20 font-semibold">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 hover:text-primary"
+                          onClick={() => toggleSort("status")}
+                        >
+                          상태
+                          {sortKey === "status" && (
+                            <span className="text-[10px]">
+                              {sortDir === "asc" ? "↑" : "↓"}
+                            </span>
+                          )}
+                        </button>
+                      </TableHead>
                       <TableHead className="w-24 font-semibold">회의록</TableHead>
                       <TableHead className="w-8" />
                     </TableRow>

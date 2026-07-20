@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useApp } from "@/context/app-context";
@@ -200,6 +200,76 @@ export function IssueRegisterForm({
   );
 }
 
+function IssueEditForm({
+  issue,
+  onDone,
+}: {
+  issue: ProjectIssue;
+  onDone: () => void;
+}) {
+  const { updateProjectIssue } = useApp();
+  const [date, setDate] = useState(issue.date);
+  const [content, setContent] = useState(issue.content);
+  const [status, setStatus] = useState<IssueStatus>(issue.status);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim()) return;
+    updateProjectIssue(issue.id, {
+      date,
+      content: content.trim(),
+      status,
+    });
+    onDone();
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-2 rounded-md border border-primary/20 bg-primary/5 p-2"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="h-7 w-[118px] shrink-0 text-xs"
+        />
+        <Select
+          value={status}
+          onValueChange={(v) => setStatus(v as IssueStatus)}
+        >
+          <SelectTrigger className="h-7 w-[68px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[]).map((s) => (
+              <SelectItem key={s} value={s} className="text-xs">
+                {ISSUE_STATUS_LABELS[s]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Input
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="h-7 text-xs"
+        autoFocus
+      />
+      <div className="flex gap-1">
+        <Button type="submit" size="sm" className="h-7 px-2 text-xs" disabled={!content.trim()}>
+          저장
+        </Button>
+        <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={onDone}>
+          취소
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export function IssueList({
   issues,
   showProject = false,
@@ -213,9 +283,15 @@ export function IssueList({
   editableStatus?: boolean;
   emptyMessage?: string;
 }) {
-  const { getUserById, getProjectById, updateProjectIssue, canAddIssue } =
-    useApp();
-  const canEdit = editableStatus && canAddIssue();
+  const {
+    getUserById,
+    getProjectById,
+    updateProjectIssue,
+    deleteProjectIssue,
+    canAddIssue,
+  } = useApp();
+  const canEdit = canAddIssue();
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   if (issues.length === 0) {
     return (
@@ -231,6 +307,14 @@ export function IssueList({
         const author = getUserById(issue.userId);
         const project = getProjectById(issue.projectId);
         const isDone = issue.status === "완료";
+
+        if (editingId === issue.id) {
+          return (
+            <li key={issue.id}>
+              <IssueEditForm issue={issue} onDone={() => setEditingId(null)} />
+            </li>
+          );
+        }
 
         return (
           <li
@@ -257,7 +341,7 @@ export function IssueList({
               {showProject && project && (
                 <span className="font-mono text-primary">{project.code}</span>
               )}
-              {showStatus && !canEdit && (
+              {showStatus && !(editableStatus && canEdit) && (
                 <Badge
                   variant={isDone ? "secondary" : "outline"}
                   className={cn(
@@ -268,12 +352,40 @@ export function IssueList({
                   {ISSUE_STATUS_LABELS[issue.status]}
                 </Badge>
               )}
-              {showStatus && canEdit && (
+              {showStatus && editableStatus && canEdit && (
                 <IssueStatusEditor
                   issueId={issue.id}
                   status={issue.status}
                   onUpdate={updateProjectIssue}
                 />
+              )}
+              {canEdit && (
+                <span className="ml-auto flex items-center gap-0.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-6 w-6"
+                    title="수정"
+                    onClick={() => setEditingId(issue.id)}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-6 w-6 text-destructive hover:text-destructive"
+                    title="삭제"
+                    onClick={() => {
+                      if (window.confirm("이 이슈를 삭제할까요?")) {
+                        deleteProjectIssue(issue.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </span>
               )}
             </div>
             <p

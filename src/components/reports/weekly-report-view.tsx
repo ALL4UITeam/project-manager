@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Presentation, Trash2, ClipboardList, Save } from "lucide-react";
-import { format, addWeeks, subWeeks } from "date-fns";
+import { Plus, Presentation, Trash2, ClipboardList, Save, Pencil } from "lucide-react";
+import { format, addWeeks, subWeeks, parseISO } from "date-fns";
 import { PageHeader } from "@/components/shared/page-header";
 import { ProjectCodeNameStack } from "@/components/shared/project-select";
 import { useApp } from "@/context/app-context";
@@ -32,6 +32,7 @@ import {
   formatWeekRange,
   getWeekStartForReportView,
   getWeekDates,
+  getWeekStart,
 } from "@/lib/week-utils";
 import {
   getAvailableYears,
@@ -322,16 +323,60 @@ function MeetingPartProjectTable({ tasks }: { tasks: WeeklyTask[] }) {
 
 function TaskTable({
   tasks,
+  yearProjects = [],
   showUser = false,
   editable = false,
   onDelete,
+  onUpdate,
 }: {
   tasks: WeeklyTask[];
+  yearProjects?: Project[];
   showUser?: boolean;
   editable?: boolean;
   onDelete?: (id: string) => void;
+  onUpdate?: (id: string, data: Partial<WeeklyTask>) => void;
 }) {
   const { getProjectById, getUserById } = useApp();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{
+    projectId: string;
+    startDate: string;
+    endDate: string;
+    content: string;
+    md: number;
+    status: TaskStatus;
+  } | null>(null);
+
+  const startEdit = (task: WeeklyTask) => {
+    setEditingId(task.id);
+    setDraft({
+      projectId: task.projectId,
+      startDate: task.startDate,
+      endDate: task.endDate,
+      content: task.content,
+      md: task.md,
+      status: task.status,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft(null);
+  };
+
+  const saveEdit = () => {
+    if (!editingId || !draft || !onUpdate) return;
+    if (!draft.projectId || !draft.content.trim() || !draft.startDate) return;
+    onUpdate(editingId, {
+      projectId: draft.projectId,
+      startDate: draft.startDate,
+      endDate: draft.endDate.trim() || draft.startDate,
+      content: draft.content.trim(),
+      md: draft.md,
+      status: draft.status,
+    });
+    cancelEdit();
+  };
 
   if (tasks.length === 0) {
     return (
@@ -352,13 +397,139 @@ function TaskTable({
             <TableHead className="w-14">구분</TableHead>
             <TableHead className="min-w-[280px]">업무내용</TableHead>
             <TableHead className="w-14 text-right">M/D</TableHead>
-            {editable && <TableHead className="w-12" />}
+            {editable && <TableHead className="w-20" />}
           </TableRow>
         </TableHeader>
         <TableBody>
           {tasks.map((task) => {
             const project = getProjectById(task.projectId);
             const user = getUserById(task.userId);
+            const isEditing = editable && editingId === task.id && draft;
+
+            if (isEditing) {
+              return (
+                <TableRow key={task.id} className="bg-primary/[0.03]">
+                  {showUser && (
+                    <TableCell className="text-sm font-medium whitespace-nowrap">
+                      {user?.name}
+                    </TableCell>
+                  )}
+                  <TableCell>
+                    <Select
+                      value={draft.projectId}
+                      onValueChange={(v) =>
+                        setDraft({ ...draft, projectId: v })
+                      }
+                    >
+                      <SelectTrigger className="h-8 min-w-[140px] text-xs">
+                        <SelectValue placeholder="프로젝트" />
+                      </SelectTrigger>
+                      <SelectContent className="max-w-sm">
+                        {yearProjects.map((p) => (
+                          <SelectItem key={p.id} value={p.id} className="text-xs">
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <Input
+                        type="date"
+                        value={draft.startDate}
+                        onChange={(e) =>
+                          setDraft({ ...draft, startDate: e.target.value })
+                        }
+                        className="h-7 w-[128px] text-xs"
+                      />
+                      <Input
+                        type="date"
+                        value={draft.endDate}
+                        onChange={(e) =>
+                          setDraft({ ...draft, endDate: e.target.value })
+                        }
+                        className="h-7 w-[128px] text-xs"
+                        title="종료일 (비워두면 시작일과 동일)"
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={draft.status}
+                      onValueChange={(v) =>
+                        setDraft({ ...draft, status: v as TaskStatus })
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-[72px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(TASK_STATUS_LABELS) as TaskStatus[]).map(
+                          (s) => (
+                            <SelectItem key={s} value={s} className="text-xs">
+                              {s}
+                            </SelectItem>
+                          )
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={draft.content}
+                      onChange={(e) =>
+                        setDraft({ ...draft, content: e.target.value })
+                      }
+                      className="h-8 text-sm"
+                      autoFocus
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      step="0.25"
+                      min="0"
+                      value={draft.md}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          md: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="h-8 w-20 font-numeric text-sm"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-0.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        disabled={
+                          !draft.projectId ||
+                          !draft.content.trim() ||
+                          !draft.startDate
+                        }
+                        onClick={saveEdit}
+                      >
+                        저장
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={cancelEdit}
+                      >
+                        취소
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            }
+
             return (
               <TableRow key={task.id}>
                 {showUser && (
@@ -390,16 +561,36 @@ function TaskTable({
                 <TableCell className="text-right font-mono text-sm font-semibold text-primary whitespace-nowrap">
                   {task.md}
                 </TableCell>
-                {editable && onDelete && (
+                {editable && (
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => onDelete(task.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-0.5">
+                      {onUpdate && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="수정"
+                          onClick={() => startEdit(task)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          title="삭제"
+                          onClick={() => {
+                            if (window.confirm("이 업무를 삭제할까요?")) {
+                              onDelete(task.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
@@ -495,6 +686,7 @@ function WeeklyTaskSection({
     currentUser,
     addWeeklyTask,
     deleteWeeklyTask,
+    updateWeeklyTask,
     canEditTask,
   } = useApp();
 
@@ -541,7 +733,7 @@ function WeeklyTaskSection({
     taskView === "NEXT_WEEK" ? "NEXT_WEEK" : "THIS_WEEK";
 
   const validDrafts = drafts.filter(
-    (r) => r.projectId && r.content.trim() && r.startDate && r.endDate && r.part
+    (r) => r.projectId && r.content.trim() && r.startDate && r.part
   );
 
   const updateDraft = (key: string, patch: Partial<DraftRow>) => {
@@ -568,13 +760,14 @@ function WeeklyTaskSection({
     if (!canWrite || !currentUser || validDrafts.length === 0) return;
     for (const row of validDrafts) {
       const part = fixedWorkPart ?? row.part;
+      const endDate = row.endDate.trim() || row.startDate;
       addWeeklyTask({
         projectId: row.projectId,
         userId: currentUser.id,
         part,
         taskType: taskTypeForSave,
         startDate: row.startDate,
-        endDate: row.endDate,
+        endDate,
         status: row.status,
         content: row.content.trim(),
         md: row.md,
@@ -702,7 +895,8 @@ function WeeklyTaskSection({
                           updateDraft(row.key, { endDate: e.target.value })
                         }
                         className="h-8 w-[128px] shrink-0 text-xs"
-                        title="종료일"
+                        title="종료일 (비워두면 시작일과 동일)"
+                        placeholder="종료일 선택"
                       />
                       <Input
                         value={row.content}
@@ -722,8 +916,8 @@ function WeeklyTaskSection({
                             md: parseFloat(e.target.value) || 0,
                           })
                         }
-                        className="h-8 w-14 shrink-0 font-numeric text-xs"
-                        title="M/D"
+                        className="h-8 w-20 shrink-0 font-numeric text-sm"
+                        title="M/D (공수)"
                       />
                       <Select
                         value={row.status}
@@ -791,6 +985,7 @@ function WeeklyTaskSection({
               ) : (
                 <TaskTable
                   tasks={displayTasks}
+                  yearProjects={yearProjects}
                   showUser={false}
                   editable={
                     writable &&
@@ -798,6 +993,7 @@ function WeeklyTaskSection({
                     canEditTask(currentUser.id)
                   }
                   onDelete={deleteWeeklyTask}
+                  onUpdate={updateWeeklyTask}
                 />
               )}
             </TabsContent>
@@ -885,6 +1081,8 @@ export function WeeklyReportView() {
   const [reportWeekStart, setReportWeekStart] = useState(() =>
     getAnchorWeekForYear(getDefaultSelectedYear(getAvailableYears(projects)))
   );
+  const [periodFrom, setPeriodFrom] = useState("");
+  const [periodTo, setPeriodTo] = useState("");
 
   const yearProjects = useMemo(() => {
     const byYear = filterProjectsByYear(projects, selectedYear);
@@ -892,11 +1090,18 @@ export function WeeklyReportView() {
     return byYear.filter((p) => p.id === projectFilter);
   }, [projects, selectedYear, projectFilter]);
 
-  const yearTasks = useMemo(
-    () =>
-      filteredWeeklyTasks.filter((t) => dateInYear(t.startDate, selectedYear)),
-    [filteredWeeklyTasks, selectedYear]
-  );
+  const yearTasks = useMemo(() => {
+    let tasks = filteredWeeklyTasks.filter((t) =>
+      dateInYear(t.startDate, selectedYear)
+    );
+    if (periodFrom) {
+      tasks = tasks.filter((t) => t.endDate >= periodFrom);
+    }
+    if (periodTo) {
+      tasks = tasks.filter((t) => t.startDate <= periodTo);
+    }
+    return tasks;
+  }, [filteredWeeklyTasks, selectedYear, periodFrom, periodTo]);
 
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
@@ -911,6 +1116,32 @@ export function WeeklyReportView() {
   const handleNextWeek = () => {
     const next = addWeeks(reportWeekStart, 1);
     if (isWeekInYear(next, selectedYear)) setReportWeekStart(next);
+  };
+
+  const handleCalendarPick = (iso: string) => {
+    if (!iso) return;
+    const week = getWeekStart(parseISO(iso));
+    const year = week.getFullYear();
+    if (availableYears.includes(year)) {
+      setSelectedYear(year);
+    }
+    setReportWeekStart(week);
+  };
+
+  const handleMeetingModeChange = (enabled: boolean) => {
+    setMeetingMode(enabled);
+    if (enabled) {
+      const writingWeek = getWeekStart();
+      if (isWeekInYear(writingWeek, selectedYear)) {
+        setReportWeekStart(writingWeek);
+      } else {
+        const y = writingWeek.getFullYear();
+        if (availableYears.includes(y)) {
+          setSelectedYear(y);
+          setReportWeekStart(writingWeek);
+        }
+      }
+    }
   };
 
   const canWriteOwnWeeklyTasks =
@@ -929,6 +1160,53 @@ export function WeeklyReportView() {
           value={selectedYear}
           onChange={handleYearChange}
         />
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-card/80 px-2 py-1 shadow-sm">
+          <Label htmlFor="week-calendar" className="whitespace-nowrap text-xs text-muted-foreground">
+            주차
+          </Label>
+          <Input
+            id="week-calendar"
+            type="date"
+            value={format(reportWeekStart, "yyyy-MM-dd")}
+            onChange={(e) => handleCalendarPick(e.target.value)}
+            className="h-8 w-[140px] text-xs"
+            title="날짜 선택 → 해당 주차로 이동"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-card/80 px-2 py-1 shadow-sm">
+          <Label className="whitespace-nowrap text-xs text-muted-foreground">
+            기간
+          </Label>
+          <Input
+            type="date"
+            value={periodFrom}
+            onChange={(e) => setPeriodFrom(e.target.value)}
+            className="h-8 w-[130px] text-xs"
+            title="검색 시작일"
+          />
+          <span className="text-xs text-muted-foreground">~</span>
+          <Input
+            type="date"
+            value={periodTo}
+            onChange={(e) => setPeriodTo(e.target.value)}
+            className="h-8 w-[130px] text-xs"
+            title="검색 종료일"
+          />
+          {(periodFrom || periodTo) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                setPeriodFrom("");
+                setPeriodTo("");
+              }}
+            >
+              초기화
+            </Button>
+          )}
+        </div>
         {!meetingMode && <GlobalProjectFilter />}
         {canViewAllReports() && (
           <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-card/80 px-3 py-1.5 shadow-sm backdrop-blur-sm">
@@ -939,7 +1217,7 @@ export function WeeklyReportView() {
             <Switch
               id="meeting-mode"
               checked={meetingMode}
-              onCheckedChange={setMeetingMode}
+              onCheckedChange={handleMeetingModeChange}
             />
           </div>
         )}
@@ -959,6 +1237,7 @@ export function WeeklyReportView() {
         yearProjects={yearProjects}
         onPrevWeek={handlePrevWeek}
         onNextWeek={handleNextWeek}
+        forceCollapsed={meetingMode}
       />
 
       {canWriteOwnWeeklyTasks && !meetingMode && (

@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, AlertCircle, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Plus,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useApp } from "@/context/app-context";
@@ -13,7 +21,7 @@ import { IssueStatusEditor } from "@/components/issues/issue-components";
 import { formatWeekRange, getWeekBoundsForYear } from "@/lib/week-utils";
 import { sortProjectsForDisplay } from "@/lib/project-utils";
 import { cn } from "@/lib/utils";
-import type { IssueStatus, Project } from "@/types";
+import type { IssueStatus, Project, ProjectIssue, ProjectRemark } from "@/types";
 import { ISSUE_STATUS_LABELS } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +50,132 @@ import {
 } from "@/components/ui/select";
 
 const CELL_SCROLL = "max-h-[100px] overflow-y-auto overscroll-contain";
+
+function InlineIssueEdit({
+  issue,
+  onDone,
+}: {
+  issue: ProjectIssue;
+  onDone: () => void;
+}) {
+  const { updateProjectIssue } = useApp();
+  const [date, setDate] = useState(issue.date);
+  const [content, setContent] = useState(issue.content);
+  const [status, setStatus] = useState<IssueStatus>(issue.status);
+
+  return (
+    <form
+      className="space-y-1 rounded border border-primary/20 bg-primary/5 p-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!content.trim()) return;
+        updateProjectIssue(issue.id, {
+          date,
+          content: content.trim(),
+          status,
+        });
+        onDone();
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex flex-wrap gap-1">
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="h-6 w-[110px] text-[10px]"
+        />
+        <Select value={status} onValueChange={(v) => setStatus(v as IssueStatus)}>
+          <SelectTrigger className="h-6 w-[60px] text-[10px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[]).map((s) => (
+              <SelectItem key={s} value={s} className="text-xs">
+                {ISSUE_STATUS_LABELS[s]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Input
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="h-6 text-[10px]"
+        autoFocus
+      />
+      <div className="flex gap-1">
+        <Button type="submit" size="sm" className="h-5 px-1.5 text-[10px]">
+          저장
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-5 px-1.5 text-[10px]"
+          onClick={onDone}
+        >
+          취소
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function InlineRemarkEdit({
+  remark,
+  onDone,
+}: {
+  remark: ProjectRemark;
+  onDone: () => void;
+}) {
+  const { updateProjectRemark } = useApp();
+  const [date, setDate] = useState(remark.date);
+  const [content, setContent] = useState(remark.content);
+
+  return (
+    <form
+      className="space-y-1 rounded border border-violet-500/20 bg-violet-500/5 p-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!content.trim()) return;
+        updateProjectRemark(remark.id, {
+          date,
+          content: content.trim(),
+        });
+        onDone();
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        className="h-6 w-[110px] text-[10px]"
+      />
+      <Input
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="h-6 text-[10px]"
+        autoFocus
+      />
+      <div className="flex gap-1">
+        <Button type="submit" size="sm" className="h-5 px-1.5 text-[10px]">
+          저장
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-5 px-1.5 text-[10px]"
+          onClick={onDone}
+        >
+          취소
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 function ProjectIssueInputRow({
   projectId,
@@ -132,19 +266,25 @@ function ProjectRemarkInputRow({
   onDone: () => void;
 }) {
   const { addProjectRemark } = useApp();
+  /** 시작일만 필수 — 종료일(to)은 비워 두면 시작일만으로 저장 */
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState("");
   const [content, setContent] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!content.trim() || !date) return;
+    const contentText = endDate.trim()
+      ? `[${format(parseISO(date), "MM/dd")}~${format(parseISO(endDate), "MM/dd")}] ${content.trim()}`
+      : content.trim();
     addProjectRemark({
       projectId,
       date,
       weekStart: weekStartISO,
-      content: content.trim(),
+      content: contentText,
     });
     setContent("");
+    setEndDate("");
     onDone();
   };
 
@@ -160,11 +300,20 @@ function ProjectRemarkInputRow({
           value={date}
           onChange={(e) => setDate(e.target.value)}
           className="h-7 w-[118px] shrink-0 text-xs"
+          title="시작일 (필수)"
+        />
+        <span className="text-[10px] text-muted-foreground">~</span>
+        <Input
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="h-7 w-[118px] shrink-0 text-xs"
+          title="종료일 (선택 — 비워두면 시작일만 저장)"
         />
         <Input
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="비고"
+          placeholder="비고 (종료일 선택)"
           className="h-7 min-w-[100px] flex-1 text-xs"
           autoFocus
         />
@@ -172,7 +321,7 @@ function ProjectRemarkInputRow({
           type="submit"
           size="sm"
           className="h-7 px-2 text-xs"
-          disabled={!content.trim()}
+          disabled={!content.trim() || !date}
         >
           등록
         </Button>
@@ -186,6 +335,9 @@ function ProjectRemarkInputRow({
           취소
         </Button>
       </div>
+      <p className="text-[10px] text-muted-foreground">
+        종료일은 선택 사항입니다. 비워 두면 시작일만 저장됩니다.
+      </p>
     </form>
   );
 }
@@ -196,12 +348,17 @@ export function WeeklyProjectIssueBoard({
   yearProjects,
   onPrevWeek,
   onNextWeek,
+  defaultExpanded = true,
+  forceCollapsed = false,
 }: {
   weekStart: Date;
   selectedYear: number;
   yearProjects: Project[];
   onPrevWeek: () => void;
   onNextWeek: () => void;
+  defaultExpanded?: boolean;
+  /** 회의 모드 등에서 상단 목록을 접을 때 */
+  forceCollapsed?: boolean;
 }) {
   const {
     getIssuesByWeek,
@@ -209,6 +366,8 @@ export function WeeklyProjectIssueBoard({
     getUserById,
     canAddIssue,
     updateProjectIssue,
+    deleteProjectIssue,
+    deleteProjectRemark,
   } = useApp();
   const [addingIssueProjectId, setAddingIssueProjectId] = useState<string | null>(
     null
@@ -216,7 +375,13 @@ export function WeeklyProjectIssueBoard({
   const [addingRemarkProjectId, setAddingRemarkProjectId] = useState<
     string | null
   >(null);
-  const [expanded, setExpanded] = useState(true);
+  const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
+  const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  useEffect(() => {
+    if (forceCollapsed) setExpanded(false);
+  }, [forceCollapsed]);
 
   const weekStartISO = format(weekStart, "yyyy-MM-dd");
   const defaultIssueDate = format(new Date(), "yyyy-MM-dd");
@@ -388,6 +553,18 @@ export function WeeklyProjectIssueBoard({
                                 const isDone = issue.status === "완료";
                                 const isCarried =
                                   !isDone && issue.weekStart !== weekStartISO;
+
+                                if (editingIssueId === issue.id) {
+                                  return (
+                                    <li key={issue.id}>
+                                      <InlineIssueEdit
+                                        issue={issue}
+                                        onDone={() => setEditingIssueId(null)}
+                                      />
+                                    </li>
+                                  );
+                                }
+
                                 return (
                                   <li
                                     key={issue.id}
@@ -421,6 +598,36 @@ export function WeeklyProjectIssueBoard({
                                           compact
                                           onUpdate={updateProjectIssue}
                                         />
+                                      )}
+                                      {canAddIssue() && (
+                                        <span className="ml-auto flex gap-0">
+                                          <button
+                                            type="button"
+                                            className="rounded p-0.5 hover:bg-background"
+                                            title="수정"
+                                            onClick={() =>
+                                              setEditingIssueId(issue.id)
+                                            }
+                                          >
+                                            <Pencil className="h-3 w-3" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="rounded p-0.5 text-destructive hover:bg-background"
+                                            title="삭제"
+                                            onClick={() => {
+                                              if (
+                                                window.confirm(
+                                                  "이 이슈를 삭제할까요?"
+                                                )
+                                              ) {
+                                                deleteProjectIssue(issue.id);
+                                              }
+                                            }}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </button>
+                                        </span>
                                       )}
                                     </div>
                                     <p
@@ -474,14 +681,57 @@ export function WeeklyProjectIssueBoard({
                             <p className="text-xs text-muted-foreground">—</p>
                           ) : (
                             <ul className="space-y-1">
-                              {projectRemarks.map((remark) => (
-                                <li
-                                  key={remark.id}
-                                  className="rounded border border-slate-200 bg-slate-50/80 px-2 py-1 text-xs leading-snug text-slate-800"
-                                >
-                                  {formatRemarkLine(remark)}
-                                </li>
-                              ))}
+                              {projectRemarks.map((remark) =>
+                                editingRemarkId === remark.id ? (
+                                  <li key={remark.id}>
+                                    <InlineRemarkEdit
+                                      remark={remark}
+                                      onDone={() => setEditingRemarkId(null)}
+                                    />
+                                  </li>
+                                ) : (
+                                  <li
+                                    key={remark.id}
+                                    className="rounded border border-slate-200 bg-slate-50/80 px-2 py-1 text-xs leading-snug text-slate-800"
+                                  >
+                                    <div className="flex items-start gap-1">
+                                      <span className="min-w-0 flex-1">
+                                        {formatRemarkLine(remark)}
+                                      </span>
+                                      {canAddIssue() && (
+                                        <span className="flex shrink-0 gap-0">
+                                          <button
+                                            type="button"
+                                            className="rounded p-0.5 hover:bg-background"
+                                            title="수정"
+                                            onClick={() =>
+                                              setEditingRemarkId(remark.id)
+                                            }
+                                          >
+                                            <Pencil className="h-3 w-3" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="rounded p-0.5 text-destructive hover:bg-background"
+                                            title="삭제"
+                                            onClick={() => {
+                                              if (
+                                                window.confirm(
+                                                  "이 비고를 삭제할까요?"
+                                                )
+                                              ) {
+                                                deleteProjectRemark(remark.id);
+                                              }
+                                            }}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </button>
+                                        </span>
+                                      )}
+                                    </div>
+                                  </li>
+                                )
+                              )}
                             </ul>
                           )}
                         </div>
