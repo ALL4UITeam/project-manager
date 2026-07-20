@@ -26,6 +26,8 @@ import { ISSUE_STATUS_LABELS } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -49,7 +51,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const CELL_SCROLL = "max-h-[100px] overflow-y-auto overscroll-contain";
+const CELL_SCROLL = "max-h-[220px] overflow-y-auto overscroll-contain pr-1";
 
 function InlineIssueEdit({
   issue,
@@ -65,7 +67,7 @@ function InlineIssueEdit({
 
   return (
     <form
-      className="space-y-1 rounded border border-primary/20 bg-primary/5 p-1.5"
+      className="space-y-3 rounded-xl border border-orange-200 bg-orange-50/60 p-3 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault();
         if (!content.trim()) return;
@@ -78,41 +80,53 @@ function InlineIssueEdit({
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex flex-wrap gap-1">
-        <Input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="h-6 w-[110px] text-[10px]"
-        />
-        <Select value={status} onValueChange={(v) => setStatus(v as IssueStatus)}>
-          <SelectTrigger className="h-6 w-[60px] text-[10px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[]).map((s) => (
-              <SelectItem key={s} value={s} className="text-xs">
-                {ISSUE_STATUS_LABELS[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">발생일</Label>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-9 w-[150px] text-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">상태</Label>
+          <Select
+            value={status}
+            onValueChange={(v) => setStatus(v as IssueStatus)}
+          >
+            <SelectTrigger className="h-9 w-[100px] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[]).map((s) => (
+                <SelectItem key={s} value={s} className="text-sm">
+                  {ISSUE_STATUS_LABELS[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      <Input
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="h-6 text-[10px]"
-        autoFocus
-      />
-      <div className="flex gap-1">
-        <Button type="submit" size="sm" className="h-5 px-1.5 text-[10px]">
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">이슈 내용</Label>
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="min-h-[72px] resize-y text-sm"
+          autoFocus
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" className="h-9 px-4" disabled={!content.trim()}>
           저장
         </Button>
         <Button
           type="button"
           size="sm"
-          variant="ghost"
-          className="h-5 px-1.5 text-[10px]"
+          variant="outline"
+          className="h-9 px-4"
           onClick={onDone}
         >
           취소
@@ -135,7 +149,7 @@ function InlineRemarkEdit({
 
   return (
     <form
-      className="space-y-1 rounded border border-violet-500/20 bg-violet-500/5 p-1.5"
+      className="space-y-3 rounded-xl border border-violet-200 bg-violet-50/60 p-3 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault();
         if (!content.trim()) return;
@@ -147,27 +161,33 @@ function InlineRemarkEdit({
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      <Input
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        className="h-6 w-[110px] text-[10px]"
-      />
-      <Input
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="h-6 text-[10px]"
-        autoFocus
-      />
-      <div className="flex gap-1">
-        <Button type="submit" size="sm" className="h-5 px-1.5 text-[10px]">
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">날짜</Label>
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="h-9 w-[150px] text-sm"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">비고 내용</Label>
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="min-h-[72px] resize-y text-sm"
+          autoFocus
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" className="h-9 px-4" disabled={!content.trim()}>
           저장
         </Button>
         <Button
           type="button"
           size="sm"
-          variant="ghost"
-          className="h-5 px-1.5 text-[10px]"
+          variant="outline"
+          className="h-9 px-4"
           onClick={onDone}
         >
           취소
@@ -202,51 +222,64 @@ function ProjectIssueInputRow({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-1.5 rounded-md border border-primary/20 bg-primary/5 p-2"
+      className="space-y-3 rounded-xl border border-orange-200 bg-orange-50/70 p-3.5 shadow-sm"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="h-7 w-[118px] shrink-0 text-xs"
-        />
-        <Select
-          value={status}
-          onValueChange={(v) => setStatus(v as IssueStatus)}
-        >
-          <SelectTrigger className="h-7 w-[68px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[]).map((s) => (
-              <SelectItem key={s} value={s} className="text-xs">
-                {ISSUE_STATUS_LABELS[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
+      <p className="text-sm font-semibold text-orange-900">이슈 등록</p>
+      <div className="flex flex-wrap gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">발생일</Label>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-9 w-[150px] bg-background text-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">상태</Label>
+          <Select
+            value={status}
+            onValueChange={(v) => setStatus(v as IssueStatus)}
+          >
+            <SelectTrigger className="h-9 w-[100px] bg-background text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[]).map((s) => (
+                <SelectItem key={s} value={s} className="text-sm">
+                  {ISSUE_STATUS_LABELS[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">이슈 내용</Label>
+        <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="이슈 내용"
-          className="h-7 min-w-[100px] flex-1 text-xs"
+          placeholder="이번 주 발생한 이슈를 입력하세요"
+          className="min-h-[80px] resize-y bg-background text-sm"
           autoFocus
         />
+      </div>
+      <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
           size="sm"
-          className="h-7 px-2 text-xs"
+          className="h-9 gap-1.5 px-4"
           disabled={!content.trim()}
         >
+          <Plus className="h-4 w-4" />
           등록
         </Button>
         <Button
           type="button"
           size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
+          variant="outline"
+          className="h-9 px-4"
           onClick={onDone}
         >
           취소
@@ -291,53 +324,67 @@ function ProjectRemarkInputRow({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-1.5 rounded-md border border-violet-500/20 bg-violet-500/5 p-2"
+      className="space-y-3 rounded-xl border border-violet-200 bg-violet-50/70 p-3.5 shadow-sm"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="h-7 w-[118px] shrink-0 text-xs"
-          title="시작일 (필수)"
-        />
-        <span className="text-[10px] text-muted-foreground">~</span>
-        <Input
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="h-7 w-[118px] shrink-0 text-xs"
-          title="종료일 (선택 — 비워두면 시작일만 저장)"
-        />
-        <Input
+      <p className="text-sm font-semibold text-violet-900">비고 등록</p>
+      <div className="flex flex-wrap gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">시작일</Label>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-9 w-[150px] bg-background text-sm"
+            title="시작일 (필수)"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            종료일 <span className="font-normal">(선택)</span>
+          </Label>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="h-9 w-[150px] bg-background text-sm"
+            title="종료일 (선택 — 비워두면 시작일만 저장)"
+          />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">비고 내용</Label>
+        <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="비고 (종료일 선택)"
-          className="h-7 min-w-[100px] flex-1 text-xs"
+          placeholder="일정·참고 사항을 입력하세요"
+          className="min-h-[80px] resize-y bg-background text-sm"
           autoFocus
         />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        종료일은 선택 사항입니다. 비워 두면 시작일만 저장됩니다.
+      </p>
+      <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
           size="sm"
-          className="h-7 px-2 text-xs"
+          className="h-9 gap-1.5 px-4"
           disabled={!content.trim() || !date}
         >
+          <Plus className="h-4 w-4" />
           등록
         </Button>
         <Button
           type="button"
           size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
+          variant="outline"
+          className="h-9 px-4"
           onClick={onDone}
         >
           취소
         </Button>
       </div>
-      <p className="text-[10px] text-muted-foreground">
-        종료일은 선택 사항입니다. 비워 두면 시작일만 저장됩니다.
-      </p>
     </form>
   );
 }
@@ -469,10 +516,10 @@ export function WeeklyProjectIssueBoard({
                   담당
                 </TableHead>
                 <TableHead className="px-4 font-semibold">상태</TableHead>
-                <TableHead className="min-w-[280px] px-4 font-semibold">
+                <TableHead className="min-w-[320px] px-4 font-semibold">
                   이슈
                 </TableHead>
-                <TableHead className="min-w-[240px] px-4 font-semibold">
+                <TableHead className="min-w-[300px] px-4 font-semibold">
                   비고
                 </TableHead>
               </TableRow>
@@ -515,20 +562,20 @@ export function WeeklyProjectIssueBoard({
                     <TableCell className="whitespace-normal px-3 py-2 align-top">
                       <ProjectStatusBadge status={project.status} />
                     </TableCell>
-                    <TableCell className="min-w-[240px] whitespace-normal px-3 py-2 align-top">
-                      <div className="flex flex-col gap-1.5">
+                    <TableCell className="min-w-[320px] whitespace-normal px-3 py-3 align-top">
+                      <div className="flex flex-col gap-2.5">
                         {canAddIssue() && !isAddingIssue && (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 w-fit text-xs"
+                            className="h-9 w-fit gap-1.5 px-3 text-sm"
                             onClick={() => {
                               setAddingRemarkProjectId(null);
                               setAddingIssueProjectId(project.id);
                             }}
                           >
-                            <Plus className="mr-1 h-3 w-3" />
-                            이슈
+                            <Plus className="h-4 w-4" />
+                            이슈 등록
                           </Button>
                         )}
                         {isAddingIssue && (
@@ -540,14 +587,14 @@ export function WeeklyProjectIssueBoard({
                         )}
                         <div
                           className={cn(
-                            "space-y-1",
+                            "space-y-2",
                             projectIssues.length > 0 && CELL_SCROLL
                           )}
                         >
                           {projectIssues.length === 0 && !isAddingIssue ? (
-                            <p className="text-xs text-muted-foreground">—</p>
+                            <p className="text-sm text-muted-foreground">—</p>
                           ) : (
-                            <ul className="space-y-1">
+                            <ul className="space-y-2">
                               {projectIssues.map((issue) => {
                                 const author = getUserById(issue.userId);
                                 const isDone = issue.status === "완료";
@@ -569,15 +616,15 @@ export function WeeklyProjectIssueBoard({
                                   <li
                                     key={issue.id}
                                     className={cn(
-                                      "rounded border px-2 py-1",
+                                      "rounded-xl border px-3 py-2.5",
                                       isDone
                                         ? "border-border/80 bg-muted/30"
-                                        : "border-orange-100 bg-orange-50/80"
+                                        : "border-orange-200 bg-orange-50/80"
                                     )}
                                   >
-                                    <div className="flex flex-wrap items-center gap-1 text-[10px] leading-tight text-muted-foreground">
-                                      <span>
-                                        {format(parseISO(issue.date), "M/d", {
+                                    <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                      <span className="font-medium">
+                                        {format(parseISO(issue.date), "M/d (EEE)", {
                                           locale: ko,
                                         })}
                                         {author && ` · ${author.name}`}
@@ -585,7 +632,7 @@ export function WeeklyProjectIssueBoard({
                                       {isCarried && (
                                         <Badge
                                           variant="outline"
-                                          className="h-4 px-1 text-[9px]"
+                                          className="h-6 px-1.5 text-[11px]"
                                         >
                                           이월
                                         </Badge>
@@ -600,20 +647,24 @@ export function WeeklyProjectIssueBoard({
                                         />
                                       )}
                                       {canAddIssue() && (
-                                        <span className="ml-auto flex gap-0">
-                                          <button
+                                        <span className="ml-auto flex gap-0.5">
+                                          <Button
                                             type="button"
-                                            className="rounded p-0.5 hover:bg-background"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
                                             title="수정"
                                             onClick={() =>
                                               setEditingIssueId(issue.id)
                                             }
                                           >
-                                            <Pencil className="h-3 w-3" />
-                                          </button>
-                                          <button
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                          <Button
                                             type="button"
-                                            className="rounded p-0.5 text-destructive hover:bg-background"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-destructive hover:text-destructive"
                                             title="삭제"
                                             onClick={() => {
                                               if (
@@ -625,14 +676,14 @@ export function WeeklyProjectIssueBoard({
                                               }
                                             }}
                                           >
-                                            <Trash2 className="h-3 w-3" />
-                                          </button>
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
                                         </span>
                                       )}
                                     </div>
                                     <p
                                       className={cn(
-                                        "text-xs leading-snug",
+                                        "text-sm leading-relaxed",
                                         isDone
                                           ? "text-muted-foreground line-through"
                                           : "text-orange-950"
@@ -648,20 +699,20 @@ export function WeeklyProjectIssueBoard({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="min-w-[200px] whitespace-normal px-3 py-2 align-top">
-                      <div className="flex flex-col gap-1.5">
+                    <TableCell className="min-w-[300px] whitespace-normal px-3 py-3 align-top">
+                      <div className="flex flex-col gap-2.5">
                         {canAddIssue() && !isAddingRemark && (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 w-fit text-xs"
+                            className="h-9 w-fit gap-1.5 px-3 text-sm"
                             onClick={() => {
                               setAddingIssueProjectId(null);
                               setAddingRemarkProjectId(project.id);
                             }}
                           >
-                            <Plus className="mr-1 h-3 w-3" />
-                            비고
+                            <Plus className="h-4 w-4" />
+                            비고 등록
                           </Button>
                         )}
                         {isAddingRemark && (
@@ -673,14 +724,14 @@ export function WeeklyProjectIssueBoard({
                         )}
                         <div
                           className={cn(
-                            "space-y-1",
+                            "space-y-2",
                             projectRemarks.length > 0 && CELL_SCROLL
                           )}
                         >
                           {projectRemarks.length === 0 && !isAddingRemark ? (
-                            <p className="text-xs text-muted-foreground">—</p>
+                            <p className="text-sm text-muted-foreground">—</p>
                           ) : (
-                            <ul className="space-y-1">
+                            <ul className="space-y-2">
                               {projectRemarks.map((remark) =>
                                 editingRemarkId === remark.id ? (
                                   <li key={remark.id}>
@@ -692,27 +743,31 @@ export function WeeklyProjectIssueBoard({
                                 ) : (
                                   <li
                                     key={remark.id}
-                                    className="rounded border border-slate-200 bg-slate-50/80 px-2 py-1 text-xs leading-snug text-slate-800"
+                                    className="rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-2.5 text-sm leading-relaxed text-slate-800"
                                   >
-                                    <div className="flex items-start gap-1">
+                                    <div className="flex items-start gap-2">
                                       <span className="min-w-0 flex-1">
                                         {formatRemarkLine(remark)}
                                       </span>
                                       {canAddIssue() && (
-                                        <span className="flex shrink-0 gap-0">
-                                          <button
+                                        <span className="flex shrink-0 gap-0.5">
+                                          <Button
                                             type="button"
-                                            className="rounded p-0.5 hover:bg-background"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
                                             title="수정"
                                             onClick={() =>
                                               setEditingRemarkId(remark.id)
                                             }
                                           >
-                                            <Pencil className="h-3 w-3" />
-                                          </button>
-                                          <button
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                          <Button
                                             type="button"
-                                            className="rounded p-0.5 text-destructive hover:bg-background"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-destructive hover:text-destructive"
                                             title="삭제"
                                             onClick={() => {
                                               if (
@@ -724,8 +779,8 @@ export function WeeklyProjectIssueBoard({
                                               }
                                             }}
                                           >
-                                            <Trash2 className="h-3 w-3" />
-                                          </button>
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
                                         </span>
                                       )}
                                     </div>

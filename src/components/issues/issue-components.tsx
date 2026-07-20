@@ -62,11 +62,11 @@ export function IssueStatusEditor({
   };
 
   const triggerClass = compact
-    ? "h-5 w-[60px] border-0 bg-transparent px-1 text-[10px] shadow-none"
-    : "h-6 w-[72px] border-orange-200 bg-background/80 text-[10px]";
+    ? "h-8 w-[76px] border-orange-200 bg-background px-2 text-xs shadow-sm"
+    : "h-9 w-[88px] border-orange-200 bg-background/80 text-sm";
 
   return (
-    <div className="inline-flex items-center gap-0.5">
+    <div className="inline-flex items-center gap-1.5">
       <Select
         value={draft}
         onValueChange={(v) => setDraft(v as IssueStatus)}
@@ -76,7 +76,7 @@ export function IssueStatusEditor({
         </SelectTrigger>
         <SelectContent>
           {(Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[]).map((s) => (
-            <SelectItem key={s} value={s} className="text-xs">
+            <SelectItem key={s} value={s} className="text-sm">
               {ISSUE_STATUS_LABELS[s]}
             </SelectItem>
           ))}
@@ -87,9 +87,7 @@ export function IssueStatusEditor({
           type="button"
           variant="secondary"
           size="sm"
-          className={cn(
-            compact ? "h-5 px-1.5 text-[9px]" : "h-6 px-2 text-[10px]"
-          )}
+          className={cn(compact ? "h-8 px-2.5 text-xs" : "h-9 px-3 text-sm")}
           onClick={handleApply}
         >
           변경
